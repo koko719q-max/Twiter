@@ -1,146 +1,287 @@
-let scene, camera, renderer;
 
-// ===== INIT =====
-scene = new THREE.Scene();
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
-camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth/window.innerHeight,
-  0.1,
-  1000
-);
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ===== LIGHT =====
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5,10,5);
-scene.add(light);
+// 🔥 FIREBASE CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyDJ7jamMsm5UMZEHAbGkolTmxpd-VLaCWQ",
+  authDomain: "twiter-e3dff.firebaseapp.com",
+  projectId: "twiter-e3dff",
+  storageBucket: "twiter-e3dff.appspot.com",
+  messagingSenderId: "1085021108337",
+  appId: "1:1085021108337:web:48c5558d973d79d21b03d0",
+  measurementId: "G-CZYEY3VMZ5"
+};
 
-// ===== FLOOR =====
-const floorGeo = new THREE.PlaneGeometry(50,50);
-const floorMat = new THREE.MeshStandardMaterial({color:0x222222});
-const floor = new THREE.Mesh(floorGeo, floorMat);
-floor.rotation.x = -Math.PI/2;
-scene.add(floor);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-// ===== WALL =====
-function createWall(x,z){
-  const geo = new THREE.BoxGeometry(2,2,2);
-  const mat = new THREE.MeshStandardMaterial({color:0x5555ff});
-  const wall = new THREE.Mesh(geo,mat);
-  wall.position.set(x,1,z);
-  scene.add(wall);
+// =========================
+// USERS CACHE (USERNAME FIX)
+// =========================
+let usersCache = [];
+
+// =========================
+// LOAD USERS
+// =========================
+async function loadUsers() {
+  const snap = await getDocs(collection(db, "users"));
+  usersCache = snap.docs.map(d => d.data());
 }
 
-// ===== MAP =====
-const map = [
-[1,1,1,1,1],
-[1,0,0,0,1],
-[1,0,1,0,1],
-[1,0,0,0,1],
-[1,1,1,1,1]
-];
+// =========================
+// UI
+// =========================
+function showRegister() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("registerBox").style.display = "block";
+}
 
-for(let z=0;z<map.length;z++){
-  for(let x=0;x<map[z].length;x++){
-    if(map[z][x]===1){
-      createWall(x*3, z*3);
-    }
+function showLogin() {
+  document.getElementById("loginBox").style.display = "block";
+  document.getElementById("registerBox").style.display = "none";
+}
+
+// =========================
+// REGISTER
+// =========================
+async function register() {
+  const username = document.getElementById("regUserName").value.trim();
+  const email = document.getElementById("regUser").value.trim();
+  const pass = document.getElementById("regPass").value.trim();
+
+  if (!username || !email || !pass) return alert("Fill all fields");
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+
+    await addDoc(collection(db, "users"), {
+      uid: cred.user.uid,
+      username,
+      email
+    });
+
+    alert("Registered!");
+    showLogin();
+
+  } catch (err) {
+    alert(err.message);
   }
 }
 
-// ===== PLAYER =====
-camera.position.set(3,1.6,3);
+// =========================
+// LOGIN
+// =========================
+async function login() {
+  const email = document.getElementById("loginUser").value.trim();
+  const pass = document.getElementById("loginPass").value.trim();
 
-// ===== INPUT =====
-let keys = {};
-document.addEventListener("keydown", e=>keys[e.key]=true);
-document.addEventListener("keyup", e=>keys[e.key]=false);
+  if (!email || !pass) return alert("Fill all fields");
 
-// TOUCH
-let touch = {x:0,y:0,active:false};
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+    document.getElementById("auth").style.display = "none";
+    await loadUsers();
+    render();
+  } catch (err) {
+    alert("Login failed: " + err.message);
+  }
+}
 
-window.addEventListener("touchmove", e=>{
-  touch.active = true;
-  touch.x = e.touches[0].clientX;
-  touch.y = e.touches[0].clientY;
+// =========================
+// LOGOUT
+// =========================
+function logout() {
+  signOut(auth);
+}
+
+// =========================
+// AUTH STATE
+// =========================
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    await loadUsers();
+    document.getElementById("auth").style.display = "none";
+  } else {
+    document.getElementById("auth").style.display = "flex";
+  }
+  render();
 });
 
-window.addEventListener("touchend", ()=>touch.active=false);
+// =========================
+// ADD TWEET
+// =========================
+async function addTweet() {
+  const input = document.getElementById("tweetInput");
+  const text = input.value.trim();
+  const user = auth.currentUser;
 
-// ===== ENEMY =====
-let enemies = [];
+  if (!user) return alert("Login first");
+  if (!text) return;
 
-function spawnEnemy(){
-  const geo = new THREE.BoxGeometry(1,1,1);
-  const mat = new THREE.MeshStandardMaterial({color:0xff0000});
-  const e = new THREE.Mesh(geo,mat);
+  const dbUser = usersCache.find(u => u.uid === user.uid);
 
-  e.position.set(
-    Math.random()*10,
-    0.5,
-    Math.random()*10
-  );
-
-  scene.add(e);
-  enemies.push(e);
-}
-
-// ===== SHOOT =====
-document.addEventListener("click", shoot);
-window.addEventListener("touchstart", shoot);
-
-function shoot(){
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-
-  const hits = raycaster.intersectObjects(enemies);
-
-  if(hits.length > 0){
-    scene.remove(hits[0].object);
-    enemies = enemies.filter(e=>e!==hits[0].object);
-  }
-}
-
-// ===== UPDATE =====
-function update(){
-
-  let speed = 0.1;
-
-  if(keys["w"]) camera.position.z -= speed;
-  if(keys["s"]) camera.position.z += speed;
-  if(keys["a"]) camera.position.x -= speed;
-  if(keys["d"]) camera.position.x += speed;
-
-  if(touch.active){
-    camera.position.x += (touch.x/window.innerWidth - 0.5)*speed*5;
-    camera.position.z += (touch.y/window.innerHeight - 0.5)*speed*5;
-  }
-
-  // ENEMY MOVE
-  enemies.forEach(e=>{
-    e.position.x += (camera.position.x - e.position.x)*0.01;
-    e.position.z += (camera.position.z - e.position.z)*0.01;
+  await addDoc(collection(db, "tweets"), {
+    user: dbUser ? dbUser.username : user.email,
+    uid: user.uid,
+    text,
+    likes: 0,
+    comments: 0,
+    retweets: 0,
+    created: Date.now()
   });
 
-  if(Math.random()<0.02) spawnEnemy();
+  input.value = "";
+  render();
 }
 
-// ===== LOOP =====
-function loop(){
-  update();
-  renderer.render(scene, camera);
-  requestAnimationFrame(loop);
+// =========================
+// LIKE
+// =========================
+async function like(id) {
+  await updateDoc(doc(db, "tweets", id), {
+    likes: increment(1)
+  });
+  render();
 }
 
-loop();
+// =========================
+// RETWEET
+// =========================
+async function retweet(id) {
+  await updateDoc(doc(db, "tweets", id), {
+    retweets: increment(1)
+  });
+  render();
+}
 
-// ===== RESIZE =====
-window.addEventListener("resize", ()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+// =========================
+// COMMENT
+// =========================
+async function comment(id) {
+  await updateDoc(doc(db, "tweets", id), {
+    comments: increment(1)
+  });
+  render();
+}
+
+// =========================
+// PROFILE
+// =========================
+async function openProfile(username) {
+  document.querySelector(".layout").style.display = "none";
+  document.getElementById("profilePage").style.display = "block";
+
+  document.getElementById("profileName").innerText = username;
+
+  const container = document.getElementById("profileTweets");
+  container.innerHTML = "";
+
+  const snap = await getDocs(collection(db, "tweets"));
+
+  snap.forEach((docSnap) => {
+    const t = docSnap.data();
+    if (t.user !== username) return;
+
+    const div = document.createElement("div");
+    div.className = "tweet";
+
+    div.innerHTML = `
+      <p>${t.text}</p>
+      <div class="actions">
+        💬 ${t.comments} 🔁 ${t.retweets} ❤️ ${t.likes}
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+// =========================
+// MY PROFILE
+// =========================
+function openMyProfile() {
+  const user = auth.currentUser;
+  if (!user) return alert("Login first");
+
+  const dbUser = usersCache.find(u => u.uid === user.uid);
+
+  openProfile(dbUser ? dbUser.username : user.email);
+}
+
+function closeProfile() {
+  document.getElementById("profilePage").style.display = "none";
+  document.querySelector(".layout").style.display = "flex";
+}
+
+// =========================
+// RENDER
+// =========================
+async function render() {
+  const container = document.getElementById("tweets");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  const snap = await getDocs(collection(db, "tweets"));
+
+  snap.forEach((docSnap) => {
+    const t = docSnap.data();
+    const id = docSnap.id;
+
+    const div = document.createElement("div");
+    div.className = "tweet";
+
+    div.innerHTML = `
+      <b onclick="openProfile('${t.user}')" style="cursor:pointer;">
+        ${t.user}
+      </b>
+      <p>${t.text}</p>
+
+      <div class="actions">
+        <span onclick="comment('${id}')">💬 ${t.comments}</span>
+        <span onclick="retweet('${id}')">🔁 ${t.retweets}</span>
+        <span onclick="like('${id}')">❤️ ${t.likes}</span>
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+// =========================
+// GLOBALS
+// =========================
+window.login = login;
+window.register = register;
+window.logout = logout;
+
+window.addTweet = addTweet;
+window.like = like;
+window.comment = comment;
+window.retweet = retweet;
+
+window.openProfile = openProfile;
+window.openMyProfile = openMyProfile;
+window.closeProfile = closeProfile;
+
+window.showLogin = showLogin;
+window.showRegister = showRegister;
