@@ -1,0 +1,17 @@
+body{
+  margin:0;
+  overflow:hidden;
+  background:#000;
+  color:#0f0;
+  font-family:monospace;
+}
+
+canvas{
+  display:block;
+}
+
+#ui{
+  position:fixed;
+  top:10px;
+  left:10px;
+}
