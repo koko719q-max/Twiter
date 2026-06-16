@@ -1,205 +1,104 @@
 <!DOCTYPE html>
 <html lang="sl">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ULTRA 3D GAME</title>
+  <meta charset="UTF-8">
+  <title>Twitter Clone</title>
 
-<style>
-body{
-  margin:0;
-  overflow:hidden;
-  background:#000;
-}
-#ui{
-  position:fixed;
-  top:10px;
-  left:10px;
-  color:#0f0;
-  font-family:monospace;
-}
-</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<div id="ui">3D TEXTURE GAME</div>
+<!-- 🔐 AUTH -->
+<div id="auth">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- LOGIN -->
+  <div id="loginBox">
+    <h2>Login</h2>
 
-<script>
+    <input id="loginUser" type="email" placeholder="Email">
+    <input id="loginPass" type="password" placeholder="Password">
 
-// ===== SCENE =====
-const scene = new THREE.Scene();
+    <button onclick="login()">Prijava</button>
+    <p onclick="showRegister()">No account? Register</p>
+  </div>
 
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth/window.innerHeight,
-  0.1,
-  1000
-);
+  <!-- REGISTER -->
+  <div id="registerBox" style="display:none;">
+    <h2>Register</h2>
 
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+    <!-- 🔥 FIX: username + email + password -->
+    <input id="regUserName" type="text" placeholder="Username">
+    <input id="regUser" type="email" placeholder="Email">
+    <input id="regPass" type="password" placeholder="Password">
 
-// ===== LIGHT =====
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(5,10,5);
-scene.add(light);
+    <button onclick="register()">Registracija</button>
+    <p onclick="showLogin()">Already have account? Login</p>
+  </div>
 
-const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambient);
+</div>
 
-// ===== TEXTURES =====
-const loader = new THREE.TextureLoader();
+<!-- 🧑 PROFILE PAGE -->
+<div id="profilePage" style="display:none;">
+  <button onclick="closeProfile()">⬅ Back</button>
+  <h2 id="profileName"></h2>
+  <div id="profileTweets"></div>
+</div>
 
-// FLOOR TEXTURE
-const floorTexture = loader.load(
-  "https://threejsfundamentals.org/threejs/resources/images/checker.png"
-);
+<div class="layout">
 
-floorTexture.wrapS = THREE.RepeatWrapping;
-floorTexture.wrapT = THREE.RepeatWrapping;
-floorTexture.repeat.set(20,20);
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <h2>X</h2>
+    <ul>
+      <li>🏠 Home</li>
+      <li>🔍 Explore</li>
+      <li>🔔 Notifications</li>
+      <li>✉️ Messages</li>
 
-// WALL TEXTURE
-const wallTexture = loader.load(
-  "https://threejsfundamentals.org/threejs/resources/images/wall.jpg"
-);
+      <li onclick="openMyProfile()" style="cursor:pointer;">👤 Profile</li>
+    </ul>
 
-// ===== FLOOR =====
-const floorGeo = new THREE.PlaneGeometry(50,50);
-const floorMat = new THREE.MeshStandardMaterial({
-  map: floorTexture
-});
+    <button onclick="logout()">Logout</button>
+  </div>
 
-const floor = new THREE.Mesh(floorGeo, floorMat);
-floor.rotation.x = -Math.PI/2;
-scene.add(floor);
+  <!-- FEED -->
+  <div class="feed">
+    <div class="composer">
+      <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
+      <button onclick="addTweet()">Post</button>
+    </div>
 
-// ===== WALL =====
-function createWall(x,z){
-  const geo = new THREE.BoxGeometry(2,2,2);
-  const mat = new THREE.MeshStandardMaterial({
-    map: wallTexture
-  });
+    <div id="tweets"></div>
+  </div>
 
-  const wall = new THREE.Mesh(geo,mat);
-  wall.position.set(x,1,z);
-  scene.add(wall);
-}
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    <input class="search" placeholder="Search">
 
-// ===== MAP =====
-const map = [
-[1,1,1,1,1],
-[1,0,0,0,1],
-[1,0,1,0,1],
-[1,0,0,0,1],
-[1,1,1,1,1]
-];
+    <div class="trends">
+      <h3>Trends</h3>
+      <p>#AI</p>
+      <p>#JavaScript</p>
+      <p>#Coding</p>
+    </div>
+  </div>
 
-for(let z=0;z<map.length;z++){
-  for(let x=0;x<map[z].length;x++){
-    if(map[z][x]===1){
-      createWall(x*3, z*3);
-    }
-  }
-}
+</div>
 
-// ===== PLAYER =====
-camera.position.set(3,1.6,3);
+<!-- 📲 MOBILE NAV -->
+<div class="bottom-nav">
+  <span>🏠</span>
+  <span>🔍</span>
+  <span>➕</span>
+  <span>🔔</span>
 
-// ===== INPUT =====
-let keys = {};
-document.addEventListener("keydown", e=>keys[e.key]=true);
-document.addEventListener("keyup", e=>keys[e.key]=false);
+  <span onclick="openMyProfile()">👤</span>
+</div>
 
-// TOUCH
-let touch = {x:0,y:0,active:false};
+<script type="module" src="script.js"></script>
 
-window.addEventListener("touchmove", e=>{
-  touch.active = true;
-  touch.x = e.touches[0].clientX;
-  touch.y = e.touches[0].clientY;
-});
-
-window.addEventListener("touchend", ()=>touch.active=false);
-
-// ===== ENEMIES =====
-let enemies = [];
-
-function spawnEnemy(){
-  const geo = new THREE.BoxGeometry(1,1,1);
-  const mat = new THREE.MeshStandardMaterial({color:0xff0000});
-  const e = new THREE.Mesh(geo,mat);
-
-  e.position.set(
-    Math.random()*10,
-    0.5,
-    Math.random()*10
-  );
-
-  scene.add(e);
-  enemies.push(e);
-}
-
-// ===== SHOOT =====
-document.addEventListener("click", shoot);
-window.addEventListener("touchstart", shoot);
-
-function shoot(){
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
-
-  const hits = raycaster.intersectObjects(enemies);
-
-  if(hits.length > 0){
-    scene.remove(hits[0].object);
-    enemies = enemies.filter(e=>e!==hits[0].object);
-  }
-}
-
-// ===== UPDATE =====
-function update(){
-
-  let speed = 0.1;
-
-  if(keys["w"]) camera.position.z -= speed;
-  if(keys["s"]) camera.position.z += speed;
-  if(keys["a"]) camera.position.x -= speed;
-  if(keys["d"]) camera.position.x += speed;
-
-  if(touch.active){
-    camera.position.x += (touch.x/window.innerWidth - 0.5)*speed*5;
-    camera.position.z += (touch.y/window.innerHeight - 0.5)*speed*5;
-  }
-
-  // ENEMY MOVE
-  enemies.forEach(e=>{
-    e.position.x += (camera.position.x - e.position.x)*0.01;
-    e.position.z += (camera.position.z - e.position.z)*0.01;
-  });
-
-  if(Math.random()<0.02) spawnEnemy();
-}
-
-// ===== LOOP =====
-function loop(){
-  update();
-  renderer.render(scene, camera);
-  requestAnimationFrame(loop);
-}
-
-loop();
-
-// ===== RESIZE =====
-window.addEventListener("resize", ()=>{
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-</script>
 </body>
 </html>
