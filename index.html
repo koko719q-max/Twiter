@@ -2,37 +2,17 @@
 <html lang="sl">
 <head>
 <meta charset="UTF-8">
-<title>Twitter Clone</title>
+<title>X Clone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body { font-family: Arial; margin:0; background:#000; color:white; }
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 55px;
-  background: #111;
-  border-top: 1px solid #333;
-
-  display: flex;
-  justify-content: space-around;
-  align-items: center;
-
-  font-size: 20px;
-  color: white;
+body {
+  margin:0;
+  font-family: Arial;
+  background:#000;
+  color:white;
 }
 
-.bottom-nav span {
-  cursor: pointer;
-  padding: 10px;
-  border-radius: 10px;
-}
-
-.bottom-nav span:hover {
-  background: #222;
-}
 #auth {
   display:flex;
   justify-content:center;
@@ -65,15 +45,44 @@ button {
   width:100%;
 }
 
-.layout { display:none; }
+.layout {
+  display:none;
+  flex-direction:column;
+  min-height:100vh;
+}
 
-.sidebar { width:200px; padding:20px; }
-
-.feed { flex:1; padding:20px; }
+.feed {
+  flex:1;
+  padding:20px;
+  padding-bottom:80px;
+}
 
 .tweet {
   border-bottom:1px solid #333;
   padding:10px;
+}
+
+#friendsPage, #profilePage {
+  display:none;
+  padding:20px;
+}
+
+.bottom-nav {
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  height:55px;
+  background:#111;
+  border-top:1px solid #333;
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  font-size:20px;
+}
+
+.bottom-nav span {
+  cursor:pointer;
 }
 </style>
 </head>
@@ -88,8 +97,8 @@ button {
       <h2>Login</h2>
       <input id="loginUser" type="email" placeholder="Email">
       <input id="loginPass" type="password" placeholder="Password">
-      <button id="loginBtn">Login</button>
-      <button id="goRegister">Register</button>
+      <button onclick="login()">Login</button>
+      <button onclick="showRegister()">Register</button>
     </div>
 
     <div id="registerBox" style="display:none;">
@@ -97,8 +106,8 @@ button {
       <input id="regUserName" placeholder="Username">
       <input id="regUser" type="email" placeholder="Email">
       <input id="regPass" type="password" placeholder="Password">
-      <button id="registerBtn">Register</button>
-      <button id="goLogin">Back to Login</button>
+      <button onclick="register()">Register</button>
+      <button onclick="showLogin()">Back</button>
     </div>
 
   </div>
@@ -106,16 +115,38 @@ button {
 
 <!-- APP -->
 <div class="layout">
-  <div class="sidebar">
-    <h2>X</h2>
-    <button id="logoutBtn">Logout</button>
-  </div>
 
   <div class="feed">
     <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
-    <button id="postBtn">Post</button>
+    <button onclick="addTweet()">Post</button>
     <div id="tweets"></div>
   </div>
+
+  <!-- FRIENDS -->
+  <div id="friendsPage">
+    <h2>Friends</h2>
+    <input id="searchUser" placeholder="Search user">
+    <button onclick="searchUsers()">Search</button>
+    <div id="usersList"></div>
+    <button onclick="backToFeed()">Back</button>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="profilePage">
+    <h2 id="profileName"></h2>
+    <div id="profileTweets"></div>
+    <button onclick="closeProfile()">Back</button>
+  </div>
+
+</div>
+
+<!-- NAV -->
+<div class="bottom-nav">
+  <span onclick="goHome()">🏠</span>
+  <span onclick="openFriends()">👥</span>
+  <span onclick="addTweet()">➕</span>
+  <span>🔔</span>
+  <span onclick="openMyProfile()">👤</span>
 </div>
 
 <script type="module">
@@ -132,10 +163,11 @@ import {
   getFirestore,
   collection,
   addDoc,
-  onSnapshot,
-  doc,
+  getDocs,
   updateDoc,
-  increment
+  doc,
+  increment,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // Firebase config
@@ -149,7 +181,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// DOM
+// DOM FIX (KLJUČNO)
 const authUI = document.getElementById("auth");
 const layout = document.querySelector(".layout");
 
@@ -166,96 +198,80 @@ const regPass = document.getElementById("regPass");
 const tweetInput = document.getElementById("tweetInput");
 const tweets = document.getElementById("tweets");
 
-const loginBtn = document.getElementById("loginBtn");
-const registerBtn = document.getElementById("registerBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const postBtn = document.getElementById("postBtn");
+const searchUser = document.getElementById("searchUser");
+const usersList = document.getElementById("usersList");
 
-// SWITCH UI
-document.getElementById("goRegister").onclick = () => {
-  loginBox.style.display = "none";
-  registerBox.style.display = "block";
-};
+const profilePage = document.getElementById("profilePage");
+const profileName = document.getElementById("profileName");
+const profileTweets = document.getElementById("profileTweets");
 
-document.getElementById("goLogin").onclick = () => {
-  loginBox.style.display = "block";
-  registerBox.style.display = "none";
-};
+let usersCache = [];
+let unsub = null;
 
-// REGISTER
-registerBtn.onclick = async () => {
-  try {
-    const cred = await createUserWithEmailAndPassword(
-      auth,
-      regUser.value,
-      regPass.value
-    );
-
-    await addDoc(collection(db, "users"), {
-      uid: cred.user.uid,
-      username: regUserName.value,
-      email: regUser.value
-    });
-
-    alert("Registered!");
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-// LOGIN
-loginBtn.onclick = async () => {
-  try {
-    await signInWithEmailAndPassword(auth, loginUser.value, loginPass.value);
-  } catch (e) {
-    alert(e.message);
-  }
-};
-
-// LOGOUT
-logoutBtn.onclick = () => signOut(auth);
+// USERS
+async function loadUsers() {
+  const snap = await getDocs(collection(db, "users"));
+  usersCache = snap.docs.map(d => d.data());
+}
 
 // AUTH STATE
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     authUI.style.display = "none";
     layout.style.display = "flex";
-    loadTweets();
+    await loadUsers();
+    listenTweets();
   } else {
     authUI.style.display = "flex";
     layout.style.display = "none";
   }
 });
 
-// POST TWEET
-postBtn.onclick = async () => {
-  if (!tweetInput.value.trim()) return;
+// REGISTER
+async function register() {
+  const username = regUserName.value;
+  const email = regUser.value;
+  const pass = regPass.value;
 
-  await addDoc(collection(db, "tweets"), {
-    user: auth.currentUser.email,
-    text: tweetInput.value,
-    likes: 0
+  const cred = await createUserWithEmailAndPassword(auth, email, pass);
+
+  await addDoc(collection(db, "users"), {
+    uid: cred.user.uid,
+    username,
+    email
   });
 
-  tweetInput.value = "";
-};
+  showLogin();
+}
 
-// LOAD TWEETS
-function loadTweets() {
-  onSnapshot(collection(db, "tweets"), (snap) => {
+// LOGIN
+async function login() {
+  await signInWithEmailAndPassword(auth, loginUser.value, loginPass.value);
+}
+
+// LOGOUT
+function logout() {
+  signOut(auth);
+}
+
+// TWEETS
+function listenTweets() {
+  if (unsub) unsub();
+
+  unsub = onSnapshot(collection(db, "tweets"), (snap) => {
     tweets.innerHTML = "";
 
-    snap.forEach((d) => {
+    snap.forEach(d => {
       const t = d.data();
 
       const div = document.createElement("div");
       div.className = "tweet";
 
       div.innerHTML = `
-        <b>${t.user}</b>
+        <b onclick="openProfile('${t.uid}')">${t.user}</b>
         <p>${t.text}</p>
-        ❤️ ${t.likes}
-        <button onclick="likeTweet('${d.id}')">Like</button>
+        ❤️ ${t.likes} 🔁 ${t.retweets} 💬 ${t.comments}
+        <button onclick="like('${d.id}')">Like</button>
       `;
 
       tweets.appendChild(div);
@@ -263,24 +279,138 @@ function loadTweets() {
   });
 }
 
+// ADD TWEET
+async function addTweet() {
+  const text = tweetInput.value;
+  if (!text) return;
+
+  const user = auth.currentUser;
+  const dbUser = usersCache.find(u => u.uid === user.uid);
+
+  await addDoc(collection(db, "tweets"), {
+    uid: user.uid,
+    user: dbUser?.username || user.email,
+    text,
+    likes: 0,
+    comments: 0,
+    retweets: 0,
+    created: Date.now()
+  });
+
+  tweetInput.value = "";
+}
+
 // LIKE
-window.likeTweet = async (id) => {
+async function like(id) {
   await updateDoc(doc(db, "tweets", id), {
     likes: increment(1)
   });
-};
-</script> 
+}
 
+// FRIENDS
+function openFriends() {
+  document.getElementById("friendsPage").style.display = "block";
+  document.querySelector(".feed").style.display = "none";
+}
 
-<script type="module" src="main.js"></script>
-  
-<!-- 📲 MOBILE NAV -->
-<div class="bottom-nav">
-  <span onclick="goHome()">🏠</span>
-  <span onclick="search()">🔍</span>
-  <span onclick="addTweet()">➕</span>
-  <span onclick="notifications()">🔔</span>
-  <span onclick="openMyProfile()">👤</span>
-</div>
+function backToFeed() {
+  document.getElementById("friendsPage").style.display = "none";
+  profilePage.style.display = "none";
+  document.querySelector(".feed").style.display = "block";
+}
+
+// SEARCH USERS
+async function searchUsers() {
+  const q = searchUser.value.toLowerCase();
+  usersList.innerHTML = "";
+
+  usersCache
+    .filter(u => u.username.toLowerCase().includes(q))
+    .forEach(u => {
+      const div = document.createElement("div");
+      div.innerHTML = `
+        <b>${u.username}</b>
+        <button onclick="addFriend('${u.uid}')">Add</button>
+      `;
+      usersList.appendChild(div);
+    });
+}
+
+// ADD FRIEND
+async function addFriend(uid) {
+  const user = auth.currentUser;
+
+  await addDoc(collection(db, "friends"), {
+    from: user.uid,
+    to: uid,
+    status: "accepted",
+    created: Date.now()
+  });
+
+  alert("Added friend");
+}
+
+// PROFILE
+async function openProfile(uid) {
+  profilePage.style.display = "block";
+  document.querySelector(".feed").style.display = "none";
+
+  const user = usersCache.find(u => u.uid === uid);
+  profileName.innerText = user?.username || "Profile";
+
+  profileTweets.innerHTML = "";
+
+  const snap = await getDocs(collection(db, "tweets"));
+
+  snap.forEach(d => {
+    const t = d.data();
+    if (t.uid === uid) {
+      profileTweets.innerHTML += `<p>${t.text}</p>`;
+    }
+  });
+}
+
+function closeProfile() {
+  profilePage.style.display = "none";
+  document.querySelector(".feed").style.display = "block";
+}
+
+function openMyProfile() {
+  openProfile(auth.currentUser.uid);
+}
+
+function goHome() {
+  backToFeed();
+}
+
+// UI
+function showRegister() {
+  loginBox.style.display = "none";
+  registerBox.style.display = "block";
+}
+
+function showLogin() {
+  loginBox.style.display = "block";
+  registerBox.style.display = "none";
+}
+
+// EXPORT TO WINDOW
+window.login = login;
+window.register = register;
+window.addTweet = addTweet;
+window.like = like;
+window.openFriends = openFriends;
+window.backToFeed = backToFeed;
+window.searchUsers = searchUsers;
+window.addFriend = addFriend;
+window.openProfile = openProfile;
+window.openMyProfile = openMyProfile;
+window.closeProfile = closeProfile;
+window.goHome = goHome;
+window.showRegister = showRegister;
+window.showLogin = showLogin;
+
+</script>
+
 </body>
 </html>
