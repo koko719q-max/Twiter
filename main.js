@@ -1,4 +1,3 @@
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 
 import {
@@ -13,10 +12,11 @@ import {
   getFirestore,
   collection,
   addDoc,
-  getDocs,
-  doc,
   updateDoc,
-  increment
+  increment,
+  doc,
+  onSnapshot,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // 🔥 FIREBASE CONFIG
@@ -35,12 +35,32 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // =========================
-// USERS CACHE (USERNAME FIX)
+// STATE
 // =========================
 let usersCache = [];
+let unsubscribeTweets = null;
 
 // =========================
-// LOAD USERS
+// DOM
+// =========================
+const authUI = document.getElementById("auth");
+const layout = document.querySelector(".layout");
+
+const loginBox = document.getElementById("loginBox");
+const registerBox = document.getElementById("registerBox");
+
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
+
+const regUserName = document.getElementById("regUserName");
+const regUser = document.getElementById("regUser");
+const regPass = document.getElementById("regPass");
+
+const tweetInput = document.getElementById("tweetInput");
+const tweets = document.getElementById("tweets");
+
+// =========================
+// USERS
 // =========================
 async function loadUsers() {
   const snap = await getDocs(collection(db, "users"));
@@ -48,25 +68,25 @@ async function loadUsers() {
 }
 
 // =========================
-// UI
+// UI SWITCH
 // =========================
 function showRegister() {
-  document.getElementById("loginBox").style.display = "none";
-  document.getElementById("registerBox").style.display = "block";
+  loginBox.style.display = "none";
+  registerBox.style.display = "block";
 }
 
 function showLogin() {
-  document.getElementById("loginBox").style.display = "block";
-  document.getElementById("registerBox").style.display = "none";
+  loginBox.style.display = "block";
+  registerBox.style.display = "none";
 }
 
 // =========================
 // REGISTER
 // =========================
 async function register() {
-  const username = document.getElementById("regUserName").value.trim();
-  const email = document.getElementById("regUser").value.trim();
-  const pass = document.getElementById("regPass").value.trim();
+  const username = regUserName.value.trim();
+  const email = regUser.value.trim();
+  const pass = regPass.value.trim();
 
   if (!username || !email || !pass) return alert("Fill all fields");
 
@@ -91,18 +111,15 @@ async function register() {
 // LOGIN
 // =========================
 async function login() {
-  const email = document.getElementById("loginUser").value.trim();
-  const pass = document.getElementById("loginPass").value.trim();
+  const email = loginUser.value.trim();
+  const pass = loginPass.value.trim();
 
   if (!email || !pass) return alert("Fill all fields");
 
   try {
     await signInWithEmailAndPassword(auth, email, pass);
-    document.getElementById("auth").style.display = "none";
-    await loadUsers();
-    render();
   } catch (err) {
-    alert("Login failed: " + err.message);
+    alert(err.message);
   }
 }
 
@@ -118,20 +135,62 @@ function logout() {
 // =========================
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    authUI.style.display = "none";
+    layout.style.display = "flex";
+
     await loadUsers();
-    document.getElementById("auth").style.display = "none";
+    listenTweets();
   } else {
-    document.getElementById("auth").style.display = "flex";
+    authUI.style.display = "flex";
+    layout.style.display = "none";
+
+    if (unsubscribeTweets) unsubscribeTweets();
   }
-  render();
 });
+
+// =========================
+// REALTIME TWEETS
+// =========================
+function listenTweets() {
+  if (unsubscribeTweets) unsubscribeTweets();
+
+  unsubscribeTweets = onSnapshot(collection(db, "tweets"), (snap) => {
+    tweets.innerHTML = "";
+
+    snap.forEach((docSnap) => {
+      const t = docSnap.data();
+      const id = docSnap.id;
+
+      const div = document.createElement("div");
+      div.className = "tweet";
+
+      div.innerHTML = `
+        <b onclick="openProfile('${t.uid}')" style="cursor:pointer;">
+          ${t.user}
+        </b>
+        <p>${t.text}</p>
+
+        <div>
+          💬 ${t.comments}
+          🔁 ${t.retweets}
+          ❤️ ${t.likes}
+        </div>
+
+        <button onclick="like('${id}')">Like</button>
+        <button onclick="comment('${id}')">Comment</button>
+        <button onclick="retweet('${id}')">Retweet</button>
+      `;
+
+      tweets.appendChild(div);
+    });
+  });
+}
 
 // =========================
 // ADD TWEET
 // =========================
 async function addTweet() {
-  const input = document.getElementById("tweetInput");
-  const text = input.value.trim();
+  const text = tweetInput.value.trim();
   const user = auth.currentUser;
 
   if (!user) return alert("Login first");
@@ -140,8 +199,8 @@ async function addTweet() {
   const dbUser = usersCache.find(u => u.uid === user.uid);
 
   await addDoc(collection(db, "tweets"), {
-    user: dbUser ? dbUser.username : user.email,
     uid: user.uid,
+    user: dbUser ? dbUser.username : user.email,
     text,
     likes: 0,
     comments: 0,
@@ -149,48 +208,40 @@ async function addTweet() {
     created: Date.now()
   });
 
-  input.value = "";
-  render();
+  tweetInput.value = "";
 }
 
 // =========================
-// LIKE
+// ACTIONS
 // =========================
 async function like(id) {
   await updateDoc(doc(db, "tweets", id), {
     likes: increment(1)
   });
-  render();
 }
 
-// =========================
-// RETWEET
-// =========================
-async function retweet(id) {
-  await updateDoc(doc(db, "tweets", id), {
-    retweets: increment(1)
-  });
-  render();
-}
-
-// =========================
-// COMMENT
-// =========================
 async function comment(id) {
   await updateDoc(doc(db, "tweets", id), {
     comments: increment(1)
   });
-  render();
+}
+
+async function retweet(id) {
+  await updateDoc(doc(db, "tweets", id), {
+    retweets: increment(1)
+  });
 }
 
 // =========================
-// PROFILE
+// PROFILE (FIXED UID)
 // =========================
-async function openProfile(username) {
+async function openProfile(uid) {
   document.querySelector(".layout").style.display = "none";
   document.getElementById("profilePage").style.display = "block";
 
-  document.getElementById("profileName").innerText = username;
+  const name = usersCache.find(u => u.uid === uid)?.username || "User";
+
+  document.getElementById("profileName").innerText = name;
 
   const container = document.getElementById("profileTweets");
   container.innerHTML = "";
@@ -199,16 +250,14 @@ async function openProfile(username) {
 
   snap.forEach((docSnap) => {
     const t = docSnap.data();
-    if (t.user !== username) return;
+    if (t.uid !== uid) return;
 
     const div = document.createElement("div");
     div.className = "tweet";
 
     div.innerHTML = `
       <p>${t.text}</p>
-      <div class="actions">
-        💬 ${t.comments} 🔁 ${t.retweets} ❤️ ${t.likes}
-      </div>
+      💬 ${t.comments} 🔁 ${t.retweets} ❤️ ${t.likes}
     `;
 
     container.appendChild(div);
@@ -220,51 +269,14 @@ async function openProfile(username) {
 // =========================
 function openMyProfile() {
   const user = auth.currentUser;
-  if (!user) return alert("Login first");
+  if (!user) return;
 
-  const dbUser = usersCache.find(u => u.uid === user.uid);
-
-  openProfile(dbUser ? dbUser.username : user.email);
+  openProfile(user.uid);
 }
 
 function closeProfile() {
   document.getElementById("profilePage").style.display = "none";
   document.querySelector(".layout").style.display = "flex";
-}
-
-// =========================
-// RENDER
-// =========================
-async function render() {
-  const container = document.getElementById("tweets");
-  if (!container) return;
-
-  container.innerHTML = "";
-
-  const snap = await getDocs(collection(db, "tweets"));
-
-  snap.forEach((docSnap) => {
-    const t = docSnap.data();
-    const id = docSnap.id;
-
-    const div = document.createElement("div");
-    div.className = "tweet";
-
-    div.innerHTML = `
-      <b onclick="openProfile('${t.user}')" style="cursor:pointer;">
-        ${t.user}
-      </b>
-      <p>${t.text}</p>
-
-      <div class="actions">
-        <span onclick="comment('${id}')">💬 ${t.comments}</span>
-        <span onclick="retweet('${id}')">🔁 ${t.retweets}</span>
-        <span onclick="like('${id}')">❤️ ${t.likes}</span>
-      </div>
-    `;
-
-    container.appendChild(div);
-  });
 }
 
 // =========================
