@@ -1,104 +1,260 @@
 <!DOCTYPE html>
 <html lang="sl">
 <head>
-  <meta charset="UTF-8">
-  <title>Twitter Clone</title>
+<meta charset="UTF-8">
+<title>Twitter Clone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { font-family: Arial; margin:0; background:#000; color:white; }
 
-  <link rel="stylesheet" href="style.css">
+#auth {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.box {
+  background:#111;
+  padding:20px;
+  border-radius:10px;
+  width:300px;
+}
+
+input, textarea {
+  width:100%;
+  margin:8px 0;
+  padding:10px;
+  border:none;
+  border-radius:5px;
+}
+
+button {
+  padding:10px;
+  background:#1d9bf0;
+  border:none;
+  color:white;
+  cursor:pointer;
+  border-radius:5px;
+}
+
+.layout { display:flex; }
+
+.sidebar { width:200px; padding:20px; }
+
+.feed { flex:1; padding:20px; }
+
+.tweet {
+  border-bottom:1px solid #333;
+  padding:10px;
+}
+
+.actions span {
+  margin-right:10px;
+  cursor:pointer;
+}
+</style>
 </head>
 
 <body>
 
-<!-- 🔐 AUTH -->
+<!-- AUTH -->
 <div id="auth">
+  <div class="box">
 
-  <!-- LOGIN -->
-  <div id="loginBox">
-    <h2>Login</h2>
+    <div id="loginBox">
+      <h2>Login</h2>
+      <input id="loginUser" type="email" placeholder="Email">
+      <input id="loginPass" type="password" placeholder="Password">
+      <button id="loginBtn">Login</button>
+      <p id="goRegister">Register</p>
+    </div>
 
-    <input id="loginUser" type="email" placeholder="Email">
-    <input id="loginPass" type="password" placeholder="Password">
+    <div id="registerBox" style="display:none;">
+      <h2>Register</h2>
+      <input id="regUserName" placeholder="Username">
+      <input id="regUser" type="email" placeholder="Email">
+      <input id="regPass" type="password" placeholder="Password">
+      <button id="registerBtn">Register</button>
+      <p id="goLogin">Login</p>
+    </div>
 
-    <button onclick="login()">Prijava</button>
-    <p onclick="showRegister()">No account? Register</p>
   </div>
-
-  <!-- REGISTER -->
-  <div id="registerBox" style="display:none;">
-    <h2>Register</h2>
-
-    <!-- 🔥 FIX: username + email + password -->
-    <input id="regUserName" type="text" placeholder="Username">
-    <input id="regUser" type="email" placeholder="Email">
-    <input id="regPass" type="password" placeholder="Password">
-
-    <button onclick="register()">Registracija</button>
-    <p onclick="showLogin()">Already have account? Login</p>
-  </div>
-
 </div>
 
-<!-- 🧑 PROFILE PAGE -->
+<!-- PROFILE -->
 <div id="profilePage" style="display:none;">
-  <button onclick="closeProfile()">⬅ Back</button>
+  <button id="backBtn">⬅ Back</button>
   <h2 id="profileName"></h2>
   <div id="profileTweets"></div>
 </div>
 
-<div class="layout">
+<!-- APP -->
+<div class="layout" style="display:none;">
 
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <h2>X</h2>
-    <ul>
-      <li>🏠 Home</li>
-      <li>🔍 Explore</li>
-      <li>🔔 Notifications</li>
-      <li>✉️ Messages</li>
-
-      <li onclick="openMyProfile()" style="cursor:pointer;">👤 Profile</li>
-    </ul>
-
-    <button onclick="logout()">Logout</button>
+    <button id="profileBtn">Profile</button>
+    <button id="logoutBtn">Logout</button>
   </div>
 
-  <!-- FEED -->
   <div class="feed">
-    <div class="composer">
-      <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
-      <button onclick="addTweet()">Post</button>
-    </div>
-
+    <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
+    <button id="postBtn">Post</button>
     <div id="tweets"></div>
   </div>
 
-  <!-- RIGHT PANEL -->
-  <div class="right">
-    <input class="search" placeholder="Search">
-
-    <div class="trends">
-      <h3>Trends</h3>
-      <p>#AI</p>
-      <p>#JavaScript</p>
-      <p>#Coding</p>
-    </div>
-  </div>
-
 </div>
 
-<!-- 📲 MOBILE NAV -->
-<div class="bottom-nav">
-  <span>🏠</span>
-  <span>🔍</span>
-  <span>➕</span>
-  <span>🔔</span>
+<script type="module">
 
-  <span onclick="openMyProfile()">👤</span>
-</div>
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-<script type="module" src="script.js"></script>
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  updateDoc,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// CONFIG
+const firebaseConfig = {
+  apiKey: "AIzaSyDJ7jamMsm5UMZEHAbGkolTmxpd-VLaCWQ",
+  authDomain: "twiter-e3dff.firebaseapp.com",
+  projectId: "twiter-e3dff"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// UI SWITCH
+const loginBox = document.getElementById("loginBox");
+const registerBox = document.getElementById("registerBox");
+
+document.getElementById("goRegister").onclick = () => {
+  loginBox.style.display = "none";
+  registerBox.style.display = "block";
+};
+
+document.getElementById("goLogin").onclick = () => {
+  loginBox.style.display = "block";
+  registerBox.style.display = "none";
+};
+
+// REGISTER
+document.getElementById("registerBtn").onclick = async () => {
+  const username = document.getElementById("regUserName").value;
+  const email = document.getElementById("regUser").value;
+  const pass = document.getElementById("regPass").value;
+
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+
+    await addDoc(collection(db, "users"), {
+      uid: cred.user.uid,
+      username,
+      email
+    });
+
+    alert("Registered!");
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+// LOGIN
+document.getElementById("loginBtn").onclick = async () => {
+  const email = document.getElementById("loginUser").value;
+  const pass = document.getElementById("loginPass").value;
+
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    alert(e.message);
+  }
+};
+
+// LOGOUT
+document.getElementById("logoutBtn").onclick = () => signOut(auth);
+
+// AUTH STATE
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    document.getElementById("auth").style.display = "none";
+    document.querySelector(".layout").style.display = "flex";
+    render();
+  } else {
+    document.getElementById("auth").style.display = "flex";
+    document.querySelector(".layout").style.display = "none";
+  }
+});
+
+// ADD TWEET
+document.getElementById("postBtn").onclick = async () => {
+  const text = document.getElementById("tweetInput").value;
+  const user = auth.currentUser;
+
+  if (!text) return;
+
+  await addDoc(collection(db, "tweets"), {
+    user: user.email,
+    text,
+    likes: 0,
+    comments: 0,
+    retweets: 0
+  });
+
+  render();
+};
+
+// LIKE
+async function like(id) {
+  await updateDoc(doc(db, "tweets", id), {
+    likes: increment(1)
+  });
+  render();
+}
+
+// RENDER
+async function render() {
+  const container = document.getElementById("tweets");
+  container.innerHTML = "";
+
+  const snap = await getDocs(collection(db, "tweets"));
+
+  snap.forEach(docSnap => {
+    const t = docSnap.data();
+    const id = docSnap.id;
+
+    const div = document.createElement("div");
+    div.className = "tweet";
+
+    div.innerHTML = `
+      <b>${t.user}</b>
+      <p>${t.text}</p>
+      ❤️ ${t.likes}
+      <button onclick="like('${id}')">Like</button>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+window.like = like;
+
+</script>
 
 </body>
 </html>
