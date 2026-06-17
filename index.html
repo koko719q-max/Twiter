@@ -59,7 +59,6 @@ button {
 <div id="auth">
   <div class="box">
 
-    <!-- LOGIN -->
     <div id="loginBox">
       <h2>Login</h2>
       <input id="loginUser" type="email" placeholder="Email">
@@ -68,7 +67,6 @@ button {
       <button id="goRegister">Register</button>
     </div>
 
-    <!-- REGISTER -->
     <div id="registerBox" style="display:none;">
       <h2>Register</h2>
       <input id="regUserName" placeholder="Username">
@@ -83,7 +81,6 @@ button {
 
 <!-- APP -->
 <div class="layout">
-
   <div class="sidebar">
     <h2>X</h2>
     <button id="logoutBtn">Logout</button>
@@ -94,12 +91,9 @@ button {
     <button id="postBtn">Post</button>
     <div id="tweets"></div>
   </div>
-
 </div>
 
-<script type="module" src="script.js"></script>
 <script type="module">
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getAuth,
@@ -119,7 +113,7 @@ import {
   increment
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// CONFIG
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDJ7jamMsm5UMZEHAbGkolTmxpd-VLaCWQ",
   authDomain: "twiter-e3dff.firebaseapp.com",
@@ -130,55 +124,68 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// UI
+// DOM
+const authUI = document.getElementById("auth");
+const layout = document.querySelector(".layout");
+
 const loginBox = document.getElementById("loginBox");
 const registerBox = document.getElementById("registerBox");
 
-// SWITCH
-document.getElementById("goRegister").addEventListener("click", () => {
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
+
+const regUserName = document.getElementById("regUserName");
+const regUser = document.getElementById("regUser");
+const regPass = document.getElementById("regPass");
+
+const tweetInput = document.getElementById("tweetInput");
+const tweets = document.getElementById("tweets");
+
+const loginBtn = document.getElementById("loginBtn");
+const registerBtn = document.getElementById("registerBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const postBtn = document.getElementById("postBtn");
+
+// SWITCH UI
+document.getElementById("goRegister").onclick = () => {
   loginBox.style.display = "none";
   registerBox.style.display = "block";
-});
+};
 
-document.getElementById("goLogin").addEventListener("click", () => {
+document.getElementById("goLogin").onclick = () => {
   loginBox.style.display = "block";
   registerBox.style.display = "none";
-});
+};
 
 // REGISTER
-document.getElementById("registerBtn").addEventListener("click", async () => {
-  const username = regUserName.value.trim();
-  const email = regUser.value.trim();
-  const pass = regPass.value.trim();
-
-  if (!username || !email || !pass) return alert("Fill all");
-
+registerBtn.onclick = async () => {
   try {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
+    const cred = await createUserWithEmailAndPassword(
+      auth,
+      regUser.value,
+      regPass.value
+    );
 
     await addDoc(collection(db, "users"), {
       uid: cred.user.uid,
-      username,
-      email
+      username: regUserName.value,
+      email: regUser.value
     });
 
     alert("Registered!");
-    loginBox.style.display = "block";
-    registerBox.style.display = "none";
-
   } catch (e) {
     alert(e.message);
   }
-});
+};
 
 // LOGIN
-document.getElementById("loginBtn").addEventListener("click", async () => {
+loginBtn.onclick = async () => {
   try {
     await signInWithEmailAndPassword(auth, loginUser.value, loginPass.value);
   } catch (e) {
     alert(e.message);
   }
-});
+};
 
 // LOGOUT
 logoutBtn.onclick = () => signOut(auth);
@@ -186,18 +193,18 @@ logoutBtn.onclick = () => signOut(auth);
 // AUTH STATE
 onAuthStateChanged(auth, (user) => {
   if (user) {
-    auth.style.display = "none";
-    document.querySelector(".layout").style.display = "flex";
+    authUI.style.display = "none";
+    layout.style.display = "flex";
     loadTweets();
   } else {
-    auth.style.display = "flex";
-    document.querySelector(".layout").style.display = "none";
+    authUI.style.display = "flex";
+    layout.style.display = "none";
   }
 });
 
-// POST
+// POST TWEET
 postBtn.onclick = async () => {
-  if (!tweetInput.value) return;
+  if (!tweetInput.value.trim()) return;
 
   await addDoc(collection(db, "tweets"), {
     user: auth.currentUser.email,
@@ -208,12 +215,12 @@ postBtn.onclick = async () => {
   tweetInput.value = "";
 };
 
-// REALTIME FEED 🔥
+// LOAD TWEETS
 function loadTweets() {
-  onSnapshot(collection(db, "tweets"), snap => {
+  onSnapshot(collection(db, "tweets"), (snap) => {
     tweets.innerHTML = "";
 
-    snap.forEach(d => {
+    snap.forEach((d) => {
       const t = d.data();
 
       const div = document.createElement("div");
@@ -223,7 +230,7 @@ function loadTweets() {
         <b>${t.user}</b>
         <p>${t.text}</p>
         ❤️ ${t.likes}
-        <button onclick="like('${d.id}')">Like</button>
+        <button onclick="likeTweet('${d.id}')">Like</button>
       `;
 
       tweets.appendChild(div);
@@ -232,12 +239,11 @@ function loadTweets() {
 }
 
 // LIKE
-window.like = async (id) => {
+window.likeTweet = async (id) => {
   await updateDoc(doc(db, "tweets", id), {
     likes: increment(1)
   });
 };
-
 </script>
 
 </body>
