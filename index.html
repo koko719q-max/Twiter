@@ -481,6 +481,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadUsers();
     await ensureOwnerRole(user);
     listenTweets();
+    listenAlerts();
   } else {
     authUI.style.display = "flex";
     layout.style.display = "none";
@@ -547,6 +548,10 @@ function logout() {
     unsub();
     unsub = null;
   }
+  if (alertsUnsub) {
+    alertsUnsub();
+    alertsUnsub = null;
+  }
   signOut(auth);
 }
 
@@ -605,6 +610,12 @@ async function addTweet() {
     return;
   }
 
+  if (text.toLowerCase().startsWith("/alert")) {
+    await handleAlertCommand(text);
+    tweetInput.value = "";
+    return;
+  }
+
   const user = auth.currentUser;
   if (!user) return;
 
@@ -625,6 +636,35 @@ async function addTweet() {
   } catch (err) {
     console.error(err);
     alert("Napaka pri objavi tweeta");
+  }
+}
+
+// UKAZ /alert <besedilo> - samo OWNER lahko poslje obvestilo VSEM uporabnikom v zivo
+async function handleAlertCommand(rawText) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const dbUser = getUserByUid(user.uid);
+  if (dbUser?.role !== "owner") {
+    alert("Ta ukaz lahko uporabi samo OWNER");
+    return;
+  }
+
+  const message = rawText.slice(6).trim();
+  if (!message) {
+    alert("Uporaba: /alert tvoje sporočilo");
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "alerts"), {
+      message,
+      createdBy: user.uid,
+      created: Date.now()
+    });
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri pošiljanju obvestila");
   }
 }
 
@@ -651,6 +691,26 @@ async function clearAllTweets() {
     console.error(err);
     alert("Napaka pri brisanju tweetov");
   }
+}
+
+// POSLUSAJ GLOBALNA OBVESTILA (/alert) V ZIVO IN JIH PRIKAZI VSEM UPORABNIKOM
+let alertsUnsub = null;
+let alertsLoaded = false;
+
+function listenAlerts() {
+  if (alertsUnsub) alertsUnsub();
+  alertsLoaded = false;
+
+  alertsUnsub = onSnapshot(collection(db, "alerts"), (snap) => {
+    snap.docChanges().forEach(change => {
+      if (change.type === "added" && alertsLoaded) {
+        const data = change.doc.data();
+        const sender = getUserByUid(data.createdBy);
+        alert(`📢 OBVESTILO od ${sender?.username || "OWNER"}\n\n${data.message}`);
+      }
+    });
+    alertsLoaded = true;
+  });
 }
 
 // LIKE
