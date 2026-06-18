@@ -194,6 +194,48 @@ button {
   margin-left:8px;
 }
 
+/* FRIENDS */
+.friend-item {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:10px 0;
+}
+
+.friend-item b {
+  flex:1;
+}
+
+.btn-auto {
+  width:auto;
+  padding:8px 14px;
+}
+
+.btn-decline {
+  background:#555;
+}
+
+.friend-status {
+  color:#1d9bf0;
+  font-size:14px;
+}
+
+.friend-pending {
+  color:#71767b;
+  font-size:14px;
+}
+
+.section-empty {
+  color:#71767b;
+  font-size:14px;
+}
+
+#friendsPage h3 {
+  font-size:16px;
+  margin:20px 0 8px 0;
+  color:#71767b;
+}
+
 </style>
 </head>
 
@@ -235,9 +277,18 @@ button {
   <!-- FRIENDS -->
   <div id="friendsPage">
     <h2>Friends</h2>
+
+    <h3>Zahteve za prijateljstvo</h3>
+    <div id="friendRequestsList"></div>
+
+    <h3>Tvoji prijatelji</h3>
+    <div id="myFriendsList"></div>
+
+    <h3>Iskanje uporabnikov</h3>
     <input id="searchUser" placeholder="Search user">
     <button onclick="searchUsers()">Search</button>
     <div id="usersList"></div>
+
     <button onclick="backToFeed()">Back</button>
   </div>
 
@@ -288,6 +339,7 @@ import {
   addDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   doc,
   increment,
   onSnapshot,
@@ -335,6 +387,7 @@ const usernameInput = document.getElementById("usernameInput");
 const logoutBtn = document.getElementById("logoutBtn");
 
 let usersCache = [];
+let friendsCache = [];
 let unsub = null;
 let expandedComments = new Set();
 
@@ -619,9 +672,16 @@ function hideAllPages() {
 }
 
 // FRIENDS
-function openFriends() {
+async function openFriends() {
   hideAllPages();
   document.getElementById("friendsPage").style.display = "block";
+
+  await loadFriends();
+  renderFriendRequests();
+  renderMyFriends();
+
+  usersList.innerHTML = "";
+  searchUser.value = "";
 }
 
 function backToFeed() {
@@ -629,29 +689,100 @@ function backToFeed() {
   document.querySelector(".feed").style.display = "block";
 }
 
-// SEARCH USERS
-async function searchUsers() {
-  const q = searchUser.value.toLowerCase();
-  usersList.innerHTML = "";
+// NALOZI VSE ODNOSE (PRIJATELJSTVA + ZAHTEVE), KI VKLJUCUJEJO TRENUTNEGA UPORABNIKA
+async function loadFriends() {
+  const user = auth.currentUser;
+  if (!user) {
+    friendsCache = [];
+    return;
+  }
 
-  usersCache
-    .filter(u => (u.username || "").toLowerCase().includes(q))
-    .forEach(u => {
-      const div = document.createElement("div");
-      div.style.display = "flex";
-      div.style.alignItems = "center";
-      div.style.gap = "10px";
-      div.style.margin = "8px 0";
-      div.innerHTML = `
-        ${avatarHtml(u, u.username, "avatar-small")}
-        <b style="flex:1">${u.username || u.email}</b>
-        <button style="width:auto;padding:8px 14px;" onclick="addFriend('${u.uid}')">Add</button>
-      `;
-      usersList.appendChild(div);
-    });
+  try {
+    const q1 = query(collection(db, "friends"), where("from", "==", user.uid));
+    const q2 = query(collection(db, "friends"), where("to", "==", user.uid));
+
+    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+
+    const map = new Map();
+    snap1.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+    snap2.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+
+    friendsCache = Array.from(map.values());
+  } catch (err) {
+    console.error(err);
+    friendsCache = [];
+  }
 }
 
-// ADD FRIEND
+// NAJDI ODNOS Z DOLOCENIM UPORABNIKOM (null, pending ali accepted)
+function getRelationship(otherUid) {
+  const myUid = auth.currentUser?.uid;
+  return (
+    friendsCache.find(
+      f =>
+        (f.from === myUid && f.to === otherUid) ||
+        (f.from === otherUid && f.to === myUid)
+    ) || null
+  );
+}
+
+// PRIKAZI PRISPELE ZAHTEVE ZA PRIJATELJSTVO
+function renderFriendRequests() {
+  const myUid = auth.currentUser?.uid;
+  const list = document.getElementById("friendRequestsList");
+  if (!list) return;
+
+  const requests = friendsCache.filter(f => f.to === myUid && f.status === "pending");
+
+  if (requests.length === 0) {
+    list.innerHTML = `<p class="section-empty">Trenutno ni novih zahtev</p>`;
+    return;
+  }
+
+  list.innerHTML = requests
+    .map(r => {
+      const u = getUserByUid(r.from);
+      return `
+        <div class="friend-item">
+          ${avatarHtml(u, u?.username, "avatar-small")}
+          <b>${u?.username || "Neznan uporabnik"}</b>
+          <button class="btn-auto" onclick="confirmFriend('${r.id}')">Potrdi</button>
+          <button class="btn-auto btn-decline" onclick="declineFriend('${r.id}')">Zavrni</button>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// PRIKAZI SEZNAM POTRJENIH PRIJATELJEV
+function renderMyFriends() {
+  const myUid = auth.currentUser?.uid;
+  const list = document.getElementById("myFriendsList");
+  if (!list) return;
+
+  const friends = friendsCache.filter(f => f.status === "accepted");
+
+  if (friends.length === 0) {
+    list.innerHTML = `<p class="section-empty">Še nimaš prijateljev</p>`;
+    return;
+  }
+
+  list.innerHTML = friends
+    .map(f => {
+      const otherUid = f.from === myUid ? f.to : f.from;
+      const u = getUserByUid(otherUid);
+      return `
+        <div class="friend-item" style="cursor:pointer;" onclick="openProfile('${otherUid}')">
+          ${avatarHtml(u, u?.username, "avatar-small")}
+          <b>${u?.username || "Neznan uporabnik"}</b>
+          <span class="friend-status">✓ Prijatelja</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// POSLJI ZAHTEVO ZA PRIJATELJSTVO
 async function addFriend(uid) {
   const user = auth.currentUser;
   if (!user) return;
@@ -661,31 +792,96 @@ async function addFriend(uid) {
     return;
   }
 
-  try {
-    const q = query(
-      collection(db, "friends"),
-      where("from", "==", user.uid),
-      where("to", "==", uid)
-    );
-    const existing = await getDocs(q);
-
-    if (!existing.empty) {
+  const rel = getRelationship(uid);
+  if (rel) {
+    if (rel.status === "accepted") {
       alert("Ta uporabnik je že tvoj prijatelj");
-      return;
+    } else if (rel.from === user.uid) {
+      alert("Zahteva je že poslana, čakaš na potrditev");
+    } else {
+      alert("Ta uporabnik ti je že poslal zahtevo - potrdi jo zgoraj");
     }
+    return;
+  }
 
+  try {
     await addDoc(collection(db, "friends"), {
       from: user.uid,
       to: uid,
-      status: "accepted",
+      status: "pending",
       created: Date.now()
     });
 
-    alert("Added friend");
+    await loadFriends();
+    searchUsers();
+    renderFriendRequests();
+    renderMyFriends();
+
+    alert("Zahteva za prijateljstvo poslana");
   } catch (err) {
     console.error(err);
-    alert("Napaka pri dodajanju prijatelja");
+    alert("Napaka pri pošiljanju zahteve");
   }
+}
+
+// POTRDI ZAHTEVO ZA PRIJATELJSTVO
+async function confirmFriend(requestId) {
+  try {
+    await updateDoc(doc(db, "friends", requestId), { status: "accepted" });
+    await loadFriends();
+    renderFriendRequests();
+    renderMyFriends();
+    if (searchUser.value) searchUsers();
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri potrditvi prijateljstva");
+  }
+}
+
+// ZAVRNI ZAHTEVO ZA PRIJATELJSTVO
+async function declineFriend(requestId) {
+  try {
+    await deleteDoc(doc(db, "friends", requestId));
+    await loadFriends();
+    renderFriendRequests();
+    if (searchUser.value) searchUsers();
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri zavrnitvi zahteve");
+  }
+}
+
+// SEARCH USERS
+async function searchUsers() {
+  const q = searchUser.value.toLowerCase();
+  usersList.innerHTML = "";
+
+  usersCache
+    .filter(u => (u.username || "").toLowerCase().includes(q))
+    .filter(u => u.uid !== auth.currentUser?.uid)
+    .forEach(u => {
+      const rel = getRelationship(u.uid);
+      let actionHtml = `<button class="btn-auto" onclick="addFriend('${u.uid}')">Add</button>`;
+
+      if (rel) {
+        if (rel.status === "accepted") {
+          actionHtml = `<span class="friend-status">✓ Prijatelja</span>`;
+        } else if (rel.from === auth.currentUser?.uid) {
+          actionHtml = `<span class="friend-pending">Zahteva poslana</span>`;
+        } else {
+          actionHtml = `<button class="btn-auto" onclick="confirmFriend('${rel.id}')">Potrdi</button>`;
+        }
+      }
+
+      const div = document.createElement("div");
+      div.className = "friend-item";
+      div.innerHTML = `
+        ${avatarHtml(u, u.username, "avatar-small")}
+        <b>${u.username || u.email}</b>
+        ${actionHtml}
+      `;
+      usersList.appendChild(div);
+    });
 }
 
 // SLIKA - pomanjsa in stisne sliko preden jo shranimo v Firestore (base64)
@@ -864,6 +1060,8 @@ window.updateUsername = updateUsername;
 window.toggleComments = toggleComments;
 window.addComment = addComment;
 window.logout = logout;
+window.confirmFriend = confirmFriend;
+window.declineFriend = declineFriend;
 
 </script>
 
