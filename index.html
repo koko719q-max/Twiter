@@ -33,6 +33,7 @@ input, textarea {
   padding:10px;
   border:none;
   border-radius:5px;
+  box-sizing:border-box;
 }
 
 button {
@@ -60,37 +61,22 @@ button {
 .tweet {
   border-bottom:1px solid #333;
   padding:10px;
-}
-
-.tweet-header {
   display:flex;
-  align-items:center;
   gap:10px;
+  align-items:flex-start;
 }
 
-.avatar {
-  width:35px;
-  height:35px;
-  border-radius:50%;
-  object-fit:cover;
+.tweet-body {
+  flex:1;
+}
+
+.tweet-user {
+  cursor:pointer;
 }
 
 #friendsPage, #profilePage {
   display:none;
   padding:20px;
-}
-
-.profile-box {
-  text-align:center;
-  margin-bottom:20px;
-}
-
-.profile-avatar {
-  width:80px;
-  height:80px;
-  border-radius:50%;
-  object-fit:cover;
-  margin-bottom:10px;
 }
 
 .bottom-nav {
@@ -110,11 +96,181 @@ button {
 .bottom-nav span {
   cursor:pointer;
 }
+
+/* AVATARS */
+.avatar {
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  background:#1d9bf0;
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:bold;
+  flex-shrink:0;
+}
+
+.avatar-small {
+  width:32px;
+  height:32px;
+  font-size:14px;
+}
+
+.avatar-large {
+  width:100px;
+  height:100px;
+  font-size:36px;
+  margin:0 auto 10px auto;
+}
+
+.profile-header {
+  text-align:center;
+  margin-bottom:20px;
+}
+
+.photo-edit {
+  text-align:center;
+  margin-bottom:20px;
+}
+
+.photo-edit input[type="file"] {
+  background:#111;
+  color:white;
+  border:1px solid #333;
+}
+
+.hidden {
+  display:none !important;
+}
+
+/* COMMENTS */
+.comment-toggle {
+  cursor:pointer;
+  color:#71767b;
+  font-size:14px;
+  margin-top:6px;
+}
+
+.comments-section {
+  margin-top:10px;
+  padding-left:12px;
+  border-left:2px solid #333;
+}
+
+.comment-item {
+  display:flex;
+  gap:8px;
+  margin:8px 0;
+  align-items:flex-start;
+}
+
+.comment-item p {
+  margin:2px 0 0 0;
+  font-size:14px;
+}
+
+.comment-input-row {
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+}
+
+.comment-input-row input {
+  margin:0;
+  flex:1;
+}
+
+.comment-input-row button {
+  width:auto;
+  padding:8px 14px;
+}
+
+.like-row button {
+  width:auto;
+  padding:6px 12px;
+  margin-left:8px;
+}
+
+/* FRIENDS */
+.friend-item {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:10px 0;
+}
+
+.friend-item b {
+  flex:1;
+}
+
+.btn-auto {
+  width:auto;
+  padding:8px 14px;
+}
+
+.btn-decline {
+  background:#555;
+}
+
+.friend-status {
+  color:#1d9bf0;
+  font-size:14px;
+}
+
+.friend-pending {
+  color:#71767b;
+  font-size:14px;
+}
+
+.section-empty {
+  color:#71767b;
+  font-size:14px;
+}
+
+#friendsPage h3 {
+  font-size:16px;
+  margin:20px 0 8px 0;
+  color:#71767b;
+}
+
+/* OWNER BADGE */
+.owner-badge {
+  display:inline-block;
+  background:linear-gradient(135deg, #ffd700, #ff9d00);
+  color:#000;
+  font-size:11px;
+  font-weight:bold;
+  padding:2px 8px;
+  border-radius:10px;
+  margin-left:6px;
+  vertical-align:middle;
+} 
+  
+  .member-badge {
+  display:inline-block;
+  background:#1d9bf0;
+  color:white;
+  font-size:11px;
+  font-weight:bold;
+  padding:2px 8px;
+  border-radius:10px;
+  margin-left:6px;
+  vertical-align:middle;
+}
+
+#profileBadge {
+  margin-top:6px;
+}
+
 </style>
 </head>
 
 <body>
 
+<!-- AUTH -->
 <div id="auth">
   <div class="box">
 
@@ -131,7 +287,6 @@ button {
       <input id="regUserName" placeholder="Username">
       <input id="regUser" type="email" placeholder="Email">
       <input id="regPass" type="password" placeholder="Password">
-      <input id="regAvatar" type="file" accept="image/*">
       <button onclick="register()">Register</button>
       <button onclick="showLogin()">Back</button>
     </div>
@@ -139,6 +294,7 @@ button {
   </div>
 </div>
 
+<!-- APP -->
 <div class="layout">
 
   <div class="feed">
@@ -147,25 +303,48 @@ button {
     <div id="tweets"></div>
   </div>
 
+  <!-- FRIENDS -->
   <div id="friendsPage">
     <h2>Friends</h2>
+
+    <h3>Zahteve za prijateljstvo</h3>
+    <div id="friendRequestsList"></div>
+
+    <h3>Tvoji prijatelji</h3>
+    <div id="myFriendsList"></div>
+
+    <h3>Iskanje uporabnikov</h3>
     <input id="searchUser" placeholder="Search user">
     <button onclick="searchUsers()">Search</button>
     <div id="usersList"></div>
+
     <button onclick="backToFeed()">Back</button>
   </div>
 
+  <!-- PROFILE -->
   <div id="profilePage">
-    <div class="profile-box">
-      <img id="profileAvatar" class="profile-avatar">
+    <div class="profile-header">
+      <div id="profileAvatar" class="avatar avatar-large"></div>
       <h2 id="profileName"></h2>
+      <div id="profileBadge"></div>
     </div>
-    <div id="profileTweets"></div>
+
+    <div id="photoEditWrap" class="photo-edit hidden">
+      <input id="profilePicInput" type="file" accept="image/*">
+      <button onclick="uploadProfilePic()">Shrani profilno sliko</button>
+
+      <input id="usernameInput" type="text" placeholder="Novo uporabniško ime" style="margin-top:15px;">
+      <button onclick="updateUsername()">Shrani uporabniško ime</button>
+    </div>
+
     <button onclick="closeProfile()">Back</button>
+
+    <button id="logoutBtn" class="hidden" style="margin-top:10px;background:#333;" onclick="logout()">Odjava</button>
   </div>
 
 </div>
 
+<!-- NAV -->
 <div class="bottom-nav">
   <span onclick="goHome()">🏠</span>
   <span onclick="openFriends()">👥</span>
@@ -176,10 +355,11 @@ button {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {  
+import {
   getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
@@ -189,52 +369,58 @@ import {
   addDoc,
   getDocs,
   updateDoc,
+  deleteDoc,
   doc,
   increment,
-  onSnapshot
+  onSnapshot,
+  query,
+  where
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-
+// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyDJ7jamMsm5UMZEHAbGkolTmxpd-VLaCWQ",
   authDomain: "twiter-e3dff.firebaseapp.com",
-  projectId: "twiter-e3dff",
-  storageBucket: "twiter-e3dff.appspot.com"
+  projectId: "twiter-e3dff"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
-// UI
+// DOM FIX (KLJUČNO)
 const authUI = document.getElementById("auth");
 const layout = document.querySelector(".layout");
 
-const loginUser = document.getElementById("loginUser");   // 🔥 FIX
-const loginPass = document.getElementById("loginPass");   // 🔥 FIX
+const loginBox = document.getElementById("loginBox");
+const registerBox = document.getElementById("registerBox");
+
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
 
 const regUserName = document.getElementById("regUserName");
 const regUser = document.getElementById("regUser");
 const regPass = document.getElementById("regPass");
-const regAvatar = document.getElementById("regAvatar");
 
 const tweetInput = document.getElementById("tweetInput");
 const tweets = document.getElementById("tweets");
 
+const searchUser = document.getElementById("searchUser");
+const usersList = document.getElementById("usersList");
+
 const profilePage = document.getElementById("profilePage");
 const profileName = document.getElementById("profileName");
+const profileBadge = document.getElementById("profileBadge");
 const profileAvatar = document.getElementById("profileAvatar");
-const profileTweets = document.getElementById("profileTweets");
+const photoEditWrap = document.getElementById("photoEditWrap");
+const profilePicInput = document.getElementById("profilePicInput");
+const usernameInput = document.getElementById("usernameInput");
+const logoutBtn = document.getElementById("logoutBtn");
 
 let usersCache = [];
+let friendsCache = [];
 let unsub = null;
+let expandedComments = new Set();
 
 // USERS
 async function loadUsers() {
@@ -242,12 +428,71 @@ async function loadUsers() {
   usersCache = snap.docs.map(d => d.data());
 }
 
-// AUTH
+function getUserByUid(uid) {
+  return usersCache.find(u => u.uid === uid);
+}
+
+// LASTNIK APLIKACIJE - ta email vedno dobi "owner" rank
+const OWNER_EMAIL = "matej22441@gmail.com";
+
+function ownerBadgeHtml(user) {
+  if (user?.role === "owner") {
+    return `<span class="owner-badge">👑 OWNER</span>`;
+  }
+  return `<span class="member-badge">MEMBER</span>`;
+}
+// PREVERI/NASTAVI OWNER RANK ZA TRENUTNEGA UPORABNIKA, CE SE UJEMA EMAIL
+async function ensureOwnerRole(authUser) {
+  if (!authUser || authUser.email !== OWNER_EMAIL) return;
+
+  const dbUser = getUserByUid(authUser.uid);
+  if (dbUser?.role === "owner") return;
+
+  try {
+    const q = query(collection(db, "users"), where("uid", "==", authUser.uid));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      const userDocId = snap.docs[0].id;
+      await updateDoc(doc(db, "users", userDocId), { role: "owner" });
+      await loadUsers();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// AVATARS - rendering helper, uporabi sliko ce obstaja, drugace prva crka uporabnika
+function setAvatarEl(el, user, fallbackName) {
+  el.innerHTML = "";
+  const name = user?.username || fallbackName || "?";
+
+  if (user?.photoURL) {
+    el.style.backgroundImage = `url(${user.photoURL})`;
+    el.innerText = "";
+  } else {
+    el.style.backgroundImage = "none";
+    el.innerText = name.charAt(0).toUpperCase();
+  }
+}
+
+function avatarHtml(user, fallbackName, sizeClass) {
+  const name = user?.username || fallbackName || "?";
+  if (user?.photoURL) {
+    return `<div class="avatar ${sizeClass}" style="background-image:url(${user.photoURL})"></div>`;
+  }
+  return `<div class="avatar ${sizeClass}">${name.charAt(0).toUpperCase()}</div>`;
+}
+
+// AUTH STATE
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     authUI.style.display = "none";
     layout.style.display = "flex";
     await loadUsers();
+    await ensureOwnerRole(user);
+    listenTweets();
+    listenAlerts();
   } else {
     authUI.style.display = "flex";
     layout.style.display = "none";
@@ -256,59 +501,687 @@ onAuthStateChanged(auth, async (user) => {
 
 // REGISTER
 async function register() {
-  const username = regUserName.value;
-  const email = regUser.value;
+  const username = regUserName.value.trim();
+  const email = regUser.value.trim();
   const pass = regPass.value;
-  const file = regAvatar.files[0];
 
-  const cred = await createUserWithEmailAndPassword(auth, email, pass);
-
-  let photoURL = "";
-
-  if (file) {
-    const imgRef = ref(storage, `avatars/${cred.user.uid}`);
-    await uploadBytes(imgRef, file);
-    photoURL = await getDownloadURL(imgRef);
+  if (!username || !email || !pass) {
+    alert("Izpolni vsa polja");
+    return;
   }
 
-  await addDoc(collection(db, "users"), {
-    uid: cred.user.uid,
-    username,
-    email,
-    photoURL
-  });
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, pass);
 
-  showLogin();
+    await addDoc(collection(db, "users"), {
+      uid: cred.user.uid,
+      username,
+      email,
+      photoURL: null
+    });
+
+    regUserName.value = "";
+    regUser.value = "";
+    regPass.value = "";
+
+    showLogin();
+  } catch (err) {
+    console.error(err);
+    let msg = "Napaka pri registraciji";
+    if (err.code === "auth/email-already-in-use") msg = "Ta email je že registriran";
+    if (err.code === "auth/weak-password") msg = "Geslo je preveč šibko (vsaj 6 znakov)";
+    if (err.code === "auth/invalid-email") msg = "Neveljaven email naslov";
+    alert(msg);
+  }
 }
 
 // LOGIN
 async function login() {
-  await signInWithEmailAndPassword(auth, loginUser.value, loginPass.value);
+  const email = loginUser.value.trim();
+  const pass = loginPass.value;
+
+  if (!email || !pass) {
+    alert("Vnesi email in geslo");
+    return;
+  }
+
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri prijavi: napačen email ali geslo");
+  }
+}
+
+// LOGOUT
+function logout() {
+  if (unsub) {
+    unsub();
+    unsub = null;
+  }
+  if (alertsUnsub) {
+    alertsUnsub();
+    alertsUnsub = null;
+  }
+  signOut(auth);
+}
+
+// TWEETS
+function listenTweets() {
+  if (unsub) unsub();
+
+  unsub = onSnapshot(collection(db, "tweets"), (snap) => {
+    tweets.innerHTML = "";
+
+    snap.forEach(d => {
+      const t = d.data();
+      const u = getUserByUid(t.uid);
+
+      const div = document.createElement("div");
+      div.className = "tweet";
+
+      div.innerHTML = `
+        ${avatarHtml(u, t.user, "avatar-small")}
+        <div class="tweet-body">
+          <b class="tweet-user" onclick="openProfile('${t.uid}')">${t.user}</b> ${ownerBadgeHtml(u)}
+          <p>${t.text}</p>
+          <div class="like-row">
+            ❤️ ${t.likes} 🔁 ${t.retweets}
+          </div>
+          <div class="comment-toggle" onclick="toggleComments('${d.id}')">💬 ${t.comments} komentarjev</div>
+          <div id="comments-${d.id}" class="comments-section" style="display:none;">
+            <div id="commentsList-${d.id}"></div>
+            <div class="comment-input-row">
+              <input id="commentInput-${d.id}" placeholder="Dodaj komentar...">
+              <button onclick="addComment('${d.id}')">Objavi</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      tweets.appendChild(div);
+
+      if (expandedComments.has(d.id)) {
+        const section = document.getElementById(`comments-${d.id}`);
+        if (section) section.style.display = "block";
+        loadComments(d.id);
+      }
+    });
+  });
+}
+
+// ADD TWEET
+async function addTweet() {
+  const text = tweetInput.value.trim();
+  if (!text) return;
+
+  if (text.toLowerCase() === "/clear") {
+    await clearAllTweets();
+    tweetInput.value = "";
+    return;
+  }
+
+  if (text.toLowerCase().startsWith("/alert")) {
+    await handleAlertCommand(text);
+    tweetInput.value = "";
+    return;
+  }
+
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const dbUser = usersCache.find(u => u.uid === user.uid);
+
+  try {
+    await addDoc(collection(db, "tweets"), {
+      uid: user.uid,
+      user: dbUser?.username || user.email,
+      text,
+      likes: 0,
+      comments: 0,
+      retweets: 0,
+      created: Date.now()
+    });
+
+    tweetInput.value = "";
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri objavi tweeta");
+  }
+}
+
+// UKAZ /alert <besedilo> - samo OWNER lahko poslje obvestilo VSEM uporabnikom v zivo
+async function handleAlertCommand(rawText) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const dbUser = getUserByUid(user.uid);
+  if (dbUser?.role !== "owner") {
+    alert("Ta ukaz lahko uporabi samo OWNER");
+    return;
+  }
+
+  const message = rawText.slice(6).trim();
+  if (!message) {
+    alert("Uporaba: /alert tvoje sporočilo");
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "alerts"), {
+      message,
+      createdBy: user.uid,
+      created: Date.now()
+    });
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri pošiljanju obvestila");
+  }
+}
+
+// IZBRISI VSE TWEETE IN KOMENTARJE (UKAZ /clear)
+async function clearAllTweets() {
+  const confirmed = confirm(
+    "Si prepričan? To bo trajno izbrisalo VSE tweete in komentarje (za vse uporabnike) iz Firebase."
+  );
+  if (!confirmed) return;
+
+  try {
+    const tweetsSnap = await getDocs(collection(db, "tweets"));
+    const commentsSnap = await getDocs(collection(db, "comments"));
+
+    const deletions = [];
+    tweetsSnap.forEach(d => deletions.push(deleteDoc(doc(db, "tweets", d.id))));
+    commentsSnap.forEach(d => deletions.push(deleteDoc(doc(db, "comments", d.id))));
+
+    await Promise.all(deletions);
+
+    expandedComments.clear();
+    alert("Vsi tweeti in komentarji so izbrisani");
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri brisanju tweetov");
+  }
+}
+
+// POSLUSAJ GLOBALNA OBVESTILA (/alert) V ZIVO IN JIH PRIKAZI VSEM UPORABNIKOM
+let alertsUnsub = null;
+let alertsLoaded = false;
+
+function listenAlerts() {
+  if (alertsUnsub) alertsUnsub();
+  alertsLoaded = false;
+
+  alertsUnsub = onSnapshot(collection(db, "alerts"), (snap) => {
+    snap.docChanges().forEach(change => {
+      if (change.type === "added" && alertsLoaded) {
+        const data = change.doc.data();
+        const sender = getUserByUid(data.createdBy);
+        alert(`📢 OBVESTILO od ${sender?.username || "OWNER"}\n\n${data.message}`);
+      }
+    });
+    alertsLoaded = true;
+  });
+}
+
+// LIKE
+async function like(id) {
+  try {
+    await updateDoc(doc(db, "tweets", id), {
+      likes: increment(1)
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// KOMENTARJI
+async function toggleComments(tweetId) {
+  const section = document.getElementById(`comments-${tweetId}`);
+  if (!section) return;
+
+  const isHidden = section.style.display === "none" || !section.style.display;
+
+  if (isHidden) {
+    expandedComments.add(tweetId);
+    section.style.display = "block";
+    await loadComments(tweetId);
+  } else {
+    expandedComments.delete(tweetId);
+    section.style.display = "none";
+  }
+}
+
+async function loadComments(tweetId) {
+  const listEl = document.getElementById(`commentsList-${tweetId}`);
+  if (!listEl) return;
+
+  try {
+    const q = query(collection(db, "comments"), where("tweetId", "==", tweetId));
+    const snap = await getDocs(q);
+
+    const comments = snap.docs
+      .map(d => d.data())
+      .sort((a, b) => a.created - b.created);
+
+    listEl.innerHTML = comments
+      .map(c => {
+        const u = getUserByUid(c.uid);
+        return `
+          <div class="comment-item">
+            ${avatarHtml(u, c.user, "avatar-small")}
+            <div>
+              <b>${c.user}</b> ${ownerBadgeHtml(u)}
+              <p>${c.text}</p>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  } catch (err) {
+    console.error(err);
+    listEl.innerHTML = "<p>Napaka pri nalaganju komentarjev</p>";
+  }
+}
+
+async function addComment(tweetId) {
+  const input = document.getElementById(`commentInput-${tweetId}`);
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const dbUser = getUserByUid(user.uid);
+
+  try {
+    await addDoc(collection(db, "comments"), {
+      tweetId,
+      uid: user.uid,
+      user: dbUser?.username || user.email,
+      text,
+      created: Date.now()
+    });
+
+    await updateDoc(doc(db, "tweets", tweetId), {
+      comments: increment(1)
+    });
+
+    input.value = "";
+    await loadComments(tweetId);
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri dodajanju komentarja");
+  }
+}
+
+// NAVIGACIJA - poskrbi, da je vedno vidna samo ena stran
+function hideAllPages() {
+  document.querySelector(".feed").style.display = "none";
+  document.getElementById("friendsPage").style.display = "none";
+  profilePage.style.display = "none";
+}
+
+// FRIENDS
+async function openFriends() {
+  hideAllPages();
+  document.getElementById("friendsPage").style.display = "block";
+
+  await loadFriends();
+  renderFriendRequests();
+  renderMyFriends();
+
+  usersList.innerHTML = "";
+  searchUser.value = "";
+}
+
+function backToFeed() {
+  hideAllPages();
+  document.querySelector(".feed").style.display = "block";
+}
+
+// NALOZI VSE ODNOSE (PRIJATELJSTVA + ZAHTEVE), KI VKLJUCUJEJO TRENUTNEGA UPORABNIKA
+async function loadFriends() {
+  const user = auth.currentUser;
+  if (!user) {
+    friendsCache = [];
+    return;
+  }
+
+  try {
+    const q1 = query(collection(db, "friends"), where("from", "==", user.uid));
+    const q2 = query(collection(db, "friends"), where("to", "==", user.uid));
+
+    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+
+    const map = new Map();
+    snap1.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+    snap2.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+
+    friendsCache = Array.from(map.values());
+  } catch (err) {
+    console.error(err);
+    friendsCache = [];
+  }
+}
+
+// NAJDI ODNOS Z DOLOCENIM UPORABNIKOM (null, pending ali accepted)
+function getRelationship(otherUid) {
+  const myUid = auth.currentUser?.uid;
+  return (
+    friendsCache.find(
+      f =>
+        (f.from === myUid && f.to === otherUid) ||
+        (f.from === otherUid && f.to === myUid)
+    ) || null
+  );
+}
+
+// PRIKAZI PRISPELE ZAHTEVE ZA PRIJATELJSTVO
+function renderFriendRequests() {
+  const myUid = auth.currentUser?.uid;
+  const list = document.getElementById("friendRequestsList");
+  if (!list) return;
+
+  const requests = friendsCache.filter(f => f.to === myUid && f.status === "pending");
+
+  if (requests.length === 0) {
+    list.innerHTML = `<p class="section-empty">Trenutno ni novih zahtev</p>`;
+    return;
+  }
+
+  list.innerHTML = requests
+    .map(r => {
+      const u = getUserByUid(r.from);
+      return `
+        <div class="friend-item">
+          ${avatarHtml(u, u?.username, "avatar-small")}
+          <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
+          <button class="btn-auto" onclick="confirmFriend('${r.id}')">Potrdi</button>
+          <button class="btn-auto btn-decline" onclick="declineFriend('${r.id}')">Zavrni</button>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// PRIKAZI SEZNAM POTRJENIH PRIJATELJEV
+function renderMyFriends() {
+  const myUid = auth.currentUser?.uid;
+  const list = document.getElementById("myFriendsList");
+  if (!list) return;
+
+  const friends = friendsCache.filter(f => f.status === "accepted");
+
+  if (friends.length === 0) {
+    list.innerHTML = `<p class="section-empty">Še nimaš prijateljev</p>`;
+    return;
+  }
+
+  list.innerHTML = friends
+    .map(f => {
+      const otherUid = f.from === myUid ? f.to : f.from;
+      const u = getUserByUid(otherUid);
+      return `
+        <div class="friend-item" style="cursor:pointer;" onclick="openProfile('${otherUid}')">
+          ${avatarHtml(u, u?.username, "avatar-small")}
+          <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
+          <span class="friend-status">✓ Prijatelja</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+// POSLJI ZAHTEVO ZA PRIJATELJSTVO
+async function addFriend(uid) {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  if (user.uid === uid) {
+    alert("Ne moreš dodati samega sebe");
+    return;
+  }
+
+  const rel = getRelationship(uid);
+  if (rel) {
+    if (rel.status === "accepted") {
+      alert("Ta uporabnik je že tvoj prijatelj");
+    } else if (rel.from === user.uid) {
+      alert("Zahteva je že poslana, čakaš na potrditev");
+    } else {
+      alert("Ta uporabnik ti je že poslal zahtevo - potrdi jo zgoraj");
+    }
+    return;
+  }
+
+  try {
+    await addDoc(collection(db, "friends"), {
+      from: user.uid,
+      to: uid,
+      status: "pending",
+      created: Date.now()
+    });
+
+    await loadFriends();
+    searchUsers();
+    renderFriendRequests();
+    renderMyFriends();
+
+    alert("Zahteva za prijateljstvo poslana");
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri pošiljanju zahteve");
+  }
+}
+
+// POTRDI ZAHTEVO ZA PRIJATELJSTVO
+async function confirmFriend(requestId) {
+  try {
+    await updateDoc(doc(db, "friends", requestId), { status: "accepted" });
+    await loadFriends();
+    renderFriendRequests();
+    renderMyFriends();
+    if (searchUser.value) searchUsers();
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri potrditvi prijateljstva");
+  }
+}
+
+// ZAVRNI ZAHTEVO ZA PRIJATELJSTVO
+async function declineFriend(requestId) {
+  try {
+    await deleteDoc(doc(db, "friends", requestId));
+    await loadFriends();
+    renderFriendRequests();
+    if (searchUser.value) searchUsers();
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri zavrnitvi zahteve");
+  }
+}
+
+// SEARCH USERS
+async function searchUsers() {
+  const q = searchUser.value.toLowerCase();
+  usersList.innerHTML = "";
+
+  usersCache
+    .filter(u => (u.username || "").toLowerCase().includes(q))
+    .filter(u => u.uid !== auth.currentUser?.uid)
+    .forEach(u => {
+      const rel = getRelationship(u.uid);
+      let actionHtml = `<button class="btn-auto" onclick="addFriend('${u.uid}')">Add</button>`;
+
+      if (rel) {
+        if (rel.status === "accepted") {
+          actionHtml = `<span class="friend-status">✓ Prijatelja</span>`;
+        } else if (rel.from === auth.currentUser?.uid) {
+          actionHtml = `<span class="friend-pending">Zahteva poslana</span>`;
+        } else {
+          actionHtml = `<button class="btn-auto" onclick="confirmFriend('${rel.id}')">Potrdi</button>`;
+        }
+      }
+
+      const div = document.createElement("div");
+      div.className = "friend-item";
+      div.innerHTML = `
+        ${avatarHtml(u, u.username, "avatar-small")}
+        <b>${u.username || u.email}</b> ${ownerBadgeHtml(u)}
+        ${actionHtml}
+      `;
+      usersList.appendChild(div);
+    });
+}
+
+// SLIKA - pomanjsa in stisne sliko preden jo shranimo v Firestore (base64)
+function resizeImage(file, maxSize = 200, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      const img = new Image();
+
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+
+        if (w > h) {
+          if (w > maxSize) {
+            h = Math.round(h * (maxSize / w));
+            w = maxSize;
+          }
+        } else {
+          if (h > maxSize) {
+            w = Math.round(w * (maxSize / h));
+            h = maxSize;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// SHRANI PROFILNO SLIKO
+async function uploadProfilePic() {
+  const file = profilePicInput.files[0];
+  if (!file) {
+    alert("Najprej izberi sliko");
+    return;
+  }
+
+  const user = auth.currentUser;
+
+  try {
+    const dataUrl = await resizeImage(file, 200, 0.7);
+
+    const q = query(collection(db, "users"), where("uid", "==", user.uid));
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      alert("Uporabniškega profila ni mogoče najti");
+      return;
+    }
+
+    const userDocId = snap.docs[0].id;
+    await updateDoc(doc(db, "users", userDocId), { photoURL: dataUrl });
+
+    await loadUsers();
+    setAvatarEl(profileAvatar, getUserByUid(user.uid), profileName.innerText);
+    profilePicInput.value = "";
+    alert("Profilna slika posodobljena");
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri nalaganju slike");
+  }
+}
+
+// SHRANI UPORABNIŠKO IME
+async function updateUsername() {
+  const newName = usernameInput.value.trim();
+  if (!newName) {
+    alert("Vnesi novo uporabniško ime");
+    return;
+  }
+
+  const user = auth.currentUser;
+
+  try {
+    const q = query(collection(db, "users"), where("uid", "==", user.uid));
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      alert("Uporabniškega profila ni mogoče najti");
+      return;
+    }
+
+    const userDocId = snap.docs[0].id;
+    await updateDoc(doc(db, "users", userDocId), { username: newName });
+
+    await loadUsers();
+
+    const updatedUser = getUserByUid(user.uid);
+    profileName.innerText = updatedUser?.username || newName;
+    profileBadge.innerHTML = ownerBadgeHtml(updatedUser);
+    setAvatarEl(profileAvatar, updatedUser, newName);
+    usernameInput.value = "";
+
+    alert("Uporabniško ime posodobljeno. Opomba: že objavljeni tweeti ohranijo staro ime.");
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri posodabljanju imena");
+  }
 }
 
 // PROFILE
 async function openProfile(uid) {
+  hideAllPages();
   profilePage.style.display = "block";
-  document.querySelector(".feed").style.display = "none";
 
-  const user = usersCache.find(u => u.uid === uid);
-
+  const user = getUserByUid(uid);
   profileName.innerText = user?.username || "Profile";
-  profileAvatar.src = user?.photoURL || "https://via.placeholder.com/80";
+  profileBadge.innerHTML = ownerBadgeHtml(user);
+  setAvatarEl(profileAvatar, user, user?.username);
+
+  const isOwnProfile = auth.currentUser && auth.currentUser.uid === uid;
+  photoEditWrap.classList.toggle("hidden", !isOwnProfile);
+  logoutBtn.classList.toggle("hidden", !isOwnProfile);
+
+  if (isOwnProfile) {
+    usernameInput.value = user?.username || "";
+  }
 }
 
-// NAV
 function closeProfile() {
-  profilePage.style.display = "none";
+  hideAllPages();
   document.querySelector(".feed").style.display = "block";
 }
 
 function openMyProfile() {
+  if (!auth.currentUser) return;
   openProfile(auth.currentUser.uid);
 }
 
 function goHome() {
-  closeProfile();
+  backToFeed();
 }
 
 // UI
@@ -322,15 +1195,28 @@ function showLogin() {
   registerBox.style.display = "none";
 }
 
-// EXPORT
+// EXPORT TO WINDOW
 window.login = login;
 window.register = register;
+window.addTweet = addTweet;
+window.like = like;
+window.openFriends = openFriends;
+window.backToFeed = backToFeed;
+window.searchUsers = searchUsers;
+window.addFriend = addFriend;
 window.openProfile = openProfile;
 window.openMyProfile = openMyProfile;
 window.closeProfile = closeProfile;
 window.goHome = goHome;
 window.showRegister = showRegister;
 window.showLogin = showLogin;
+window.uploadProfilePic = uploadProfilePic;
+window.updateUsername = updateUsername;
+window.toggleComments = toggleComments;
+window.addComment = addComment;
+window.logout = logout;
+window.confirmFriend = confirmFriend;
+window.declineFriend = declineFriend;
 
 </script>
 
