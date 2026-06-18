@@ -247,6 +247,18 @@ button {
   border-radius:10px;
   margin-left:6px;
   vertical-align:middle;
+} 
+  
+  .member-badge {
+  display:inline-block;
+  background:#1d9bf0;
+  color:white;
+  font-size:11px;
+  font-weight:bold;
+  padding:2px 8px;
+  border-radius:10px;
+  margin-left:6px;
+  vertical-align:middle;
 }
 
 #profileBadge {
@@ -427,9 +439,8 @@ function ownerBadgeHtml(user) {
   if (user?.role === "owner") {
     return `<span class="owner-badge">👑 OWNER</span>`;
   }
-  return "";
+  return `<span class="member-badge">MEMBER</span>`;
 }
-
 // PREVERI/NASTAVI OWNER RANK ZA TRENUTNEGA UPORABNIKA, CE SE UJEMA EMAIL
 async function ensureOwnerRole(authUser) {
   if (!authUser || authUser.email !== OWNER_EMAIL) return;
@@ -1210,4 +1221,4 @@ window.declineFriend = declineFriend;
 </script>
 
 </body>
-</html>
+  </html>
