@@ -236,6 +236,23 @@ button {
   color:#71767b;
 }
 
+/* OWNER BADGE */
+.owner-badge {
+  display:inline-block;
+  background:linear-gradient(135deg, #ffd700, #ff9d00);
+  color:#000;
+  font-size:11px;
+  font-weight:bold;
+  padding:2px 8px;
+  border-radius:10px;
+  margin-left:6px;
+  vertical-align:middle;
+}
+
+#profileBadge {
+  margin-top:6px;
+}
+
 </style>
 </head>
 
@@ -297,6 +314,7 @@ button {
     <div class="profile-header">
       <div id="profileAvatar" class="avatar avatar-large"></div>
       <h2 id="profileName"></h2>
+      <div id="profileBadge"></div>
     </div>
 
     <div id="photoEditWrap" class="photo-edit hidden">
@@ -380,6 +398,7 @@ const usersList = document.getElementById("usersList");
 
 const profilePage = document.getElementById("profilePage");
 const profileName = document.getElementById("profileName");
+const profileBadge = document.getElementById("profileBadge");
 const profileAvatar = document.getElementById("profileAvatar");
 const photoEditWrap = document.getElementById("photoEditWrap");
 const profilePicInput = document.getElementById("profilePicInput");
@@ -399,6 +418,37 @@ async function loadUsers() {
 
 function getUserByUid(uid) {
   return usersCache.find(u => u.uid === uid);
+}
+
+// LASTNIK APLIKACIJE - ta email vedno dobi "owner" rank
+const OWNER_EMAIL = "matej22441@gmail.com";
+
+function ownerBadgeHtml(user) {
+  if (user?.role === "owner") {
+    return `<span class="owner-badge">👑 OWNER</span>`;
+  }
+  return "";
+}
+
+// PREVERI/NASTAVI OWNER RANK ZA TRENUTNEGA UPORABNIKA, CE SE UJEMA EMAIL
+async function ensureOwnerRole(authUser) {
+  if (!authUser || authUser.email !== OWNER_EMAIL) return;
+
+  const dbUser = getUserByUid(authUser.uid);
+  if (dbUser?.role === "owner") return;
+
+  try {
+    const q = query(collection(db, "users"), where("uid", "==", authUser.uid));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      const userDocId = snap.docs[0].id;
+      await updateDoc(doc(db, "users", userDocId), { role: "owner" });
+      await loadUsers();
+    }
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 // AVATARS - rendering helper, uporabi sliko ce obstaja, drugace prva crka uporabnika
@@ -429,6 +479,7 @@ onAuthStateChanged(auth, async (user) => {
     authUI.style.display = "none";
     layout.style.display = "flex";
     await loadUsers();
+    await ensureOwnerRole(user);
     listenTweets();
   } else {
     authUI.style.display = "flex";
@@ -516,7 +567,7 @@ function listenTweets() {
       div.innerHTML = `
         ${avatarHtml(u, t.user, "avatar-small")}
         <div class="tweet-body">
-          <b class="tweet-user" onclick="openProfile('${t.uid}')">${t.user}</b>
+          <b class="tweet-user" onclick="openProfile('${t.uid}')">${t.user}</b> ${ownerBadgeHtml(u)}
           <p>${t.text}</p>
           <div class="like-row">
             ❤️ ${t.likes} 🔁 ${t.retweets}
@@ -548,6 +599,12 @@ async function addTweet() {
   const text = tweetInput.value.trim();
   if (!text) return;
 
+  if (text.toLowerCase() === "/clear") {
+    await clearAllTweets();
+    tweetInput.value = "";
+    return;
+  }
+
   const user = auth.currentUser;
   if (!user) return;
 
@@ -568,6 +625,31 @@ async function addTweet() {
   } catch (err) {
     console.error(err);
     alert("Napaka pri objavi tweeta");
+  }
+}
+
+// IZBRISI VSE TWEETE IN KOMENTARJE (UKAZ /clear)
+async function clearAllTweets() {
+  const confirmed = confirm(
+    "Si prepričan? To bo trajno izbrisalo VSE tweete in komentarje (za vse uporabnike) iz Firebase."
+  );
+  if (!confirmed) return;
+
+  try {
+    const tweetsSnap = await getDocs(collection(db, "tweets"));
+    const commentsSnap = await getDocs(collection(db, "comments"));
+
+    const deletions = [];
+    tweetsSnap.forEach(d => deletions.push(deleteDoc(doc(db, "tweets", d.id))));
+    commentsSnap.forEach(d => deletions.push(deleteDoc(doc(db, "comments", d.id))));
+
+    await Promise.all(deletions);
+
+    expandedComments.clear();
+    alert("Vsi tweeti in komentarji so izbrisani");
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri brisanju tweetov");
   }
 }
 
@@ -618,7 +700,7 @@ async function loadComments(tweetId) {
           <div class="comment-item">
             ${avatarHtml(u, c.user, "avatar-small")}
             <div>
-              <b>${c.user}</b>
+              <b>${c.user}</b> ${ownerBadgeHtml(u)}
               <p>${c.text}</p>
             </div>
           </div>
@@ -745,7 +827,7 @@ function renderFriendRequests() {
       return `
         <div class="friend-item">
           ${avatarHtml(u, u?.username, "avatar-small")}
-          <b>${u?.username || "Neznan uporabnik"}</b>
+          <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
           <button class="btn-auto" onclick="confirmFriend('${r.id}')">Potrdi</button>
           <button class="btn-auto btn-decline" onclick="declineFriend('${r.id}')">Zavrni</button>
         </div>
@@ -774,7 +856,7 @@ function renderMyFriends() {
       return `
         <div class="friend-item" style="cursor:pointer;" onclick="openProfile('${otherUid}')">
           ${avatarHtml(u, u?.username, "avatar-small")}
-          <b>${u?.username || "Neznan uporabnik"}</b>
+          <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
           <span class="friend-status">✓ Prijatelja</span>
         </div>
       `;
@@ -877,7 +959,7 @@ async function searchUsers() {
       div.className = "friend-item";
       div.innerHTML = `
         ${avatarHtml(u, u.username, "avatar-small")}
-        <b>${u.username || u.email}</b>
+        <b>${u.username || u.email}</b> ${ownerBadgeHtml(u)}
         ${actionHtml}
       `;
       usersList.appendChild(div);
@@ -987,6 +1069,7 @@ async function updateUsername() {
 
     const updatedUser = getUserByUid(user.uid);
     profileName.innerText = updatedUser?.username || newName;
+    profileBadge.innerHTML = ownerBadgeHtml(updatedUser);
     setAvatarEl(profileAvatar, updatedUser, newName);
     usernameInput.value = "";
 
@@ -1004,6 +1087,7 @@ async function openProfile(uid) {
 
   const user = getUserByUid(uid);
   profileName.innerText = user?.username || "Profile";
+  profileBadge.innerHTML = ownerBadgeHtml(user);
   setAvatarEl(profileAvatar, user, user?.username);
 
   const isOwnProfile = auth.currentUser && auth.currentUser.uid === uid;
