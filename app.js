@@ -1,3 +1,6 @@
+
+import "./warn.js";
+import "./color.js"
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getAuth,
@@ -374,10 +377,15 @@ function listenTweets() {
 // ─────────────────────────────────────────────
 // ADD TWEET
 // ─────────────────────────────────────────────
-
 async function addTweet() {
   const text = tweetInput.value.trim();
   if (!text) return;
+
+  if (text.toLowerCase().startsWith("/warn")) {
+    await window.handleWarnCommand(text);
+    tweetInput.value = "";
+    return;
+  }
 
   if (text.toLowerCase() === "/clear") {
     await clearAllTweets();
@@ -391,16 +399,29 @@ async function addTweet() {
     return;
   }
 
+  if (text.toLowerCase() === "/backup") {
+    await handleBackupCommand();
+    tweetInput.value = "";
+    return;
+  }
+
   const user = auth.currentUser;
   if (!user) return;
 
   const dbUser = usersCache.find(u => u.uid === user.uid);
 
   try {
+    let finalText = text;
+
+    // OWNER COLOR SYSTEM
+    if (dbUser?.role === "owner" && window.applyColors) {
+      finalText = window.applyColors(text);
+    }
+
     await addDoc(collection(db, "tweets"), {
       uid: user.uid,
       user: dbUser?.username || user.email,
-      text,
+      text: finalText,
       likes: 0,
       comments: 0,
       retweets: 0,
@@ -471,6 +492,56 @@ async function clearAllTweets() {
   } catch (err) {
     console.error(err);
     alert("Napaka pri brisanju tweetov");
+  }
+}
+
+// ─────────────────────────────────────────────
+// /backup UKAZ
+// ─────────────────────────────────────────────
+
+async function handleBackupCommand() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const dbUser = getUserByUid(user.uid);
+  if (dbUser?.role !== "owner") {
+    alert("Ta ukaz lahko uporabi samo OWNER");
+    return;
+  }
+
+  try {
+    showToast("⏳ Pripravljam backup...");
+
+    const [tweetsSnap, commentsSnap, usersSnap, friendsSnap] = await Promise.all([
+      getDocs(collection(db, "tweets")),
+      getDocs(collection(db, "comments")),
+      getDocs(collection(db, "users")),
+      getDocs(collection(db, "friends"))
+    ]);
+
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      tweets:   tweetsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      comments: commentsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      users:    usersSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+      friends:  friendsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    showToast("✅ Backup uspešno izvožen!");
+  } catch (err) {
+    console.error(err);
+    alert("Napaka pri izvozu backupa");
   }
 }
 
