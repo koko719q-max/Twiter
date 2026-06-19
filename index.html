@@ -6,6 +6,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes expandHeight {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 500px;
+    opacity: 1;
+  }
+}
+
 body {
   margin:0;
   font-family: Arial;
@@ -18,6 +80,7 @@ body {
   justify-content:center;
   align-items:center;
   height:100vh;
+  animation: fadeIn 0.5s ease-in;
 }
 
 .box {
@@ -25,6 +88,8 @@ body {
   padding:20px;
   border-radius:10px;
   width:300px;
+  animation: slideInUp 0.6s ease-out;
+  box-shadow: 0 8px 32px rgba(29, 155, 240, 0.1);
 }
 
 input, textarea {
@@ -34,6 +99,17 @@ input, textarea {
   border:none;
   border-radius:5px;
   box-sizing:border-box;
+  background:#222;
+  color:white;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  background:#2a2a2a;
+  border-color: #1d9bf0;
+  box-shadow: 0 0 12px rgba(29, 155, 240, 0.3);
 }
 
 button {
@@ -44,12 +120,27 @@ button {
   cursor:pointer;
   border-radius:5px;
   width:100%;
+  transition: all 0.3s ease;
+  font-weight: bold;
+  position: relative;
+  overflow: hidden;
+}
+
+button:hover {
+  background:#1a8cd8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.3);
+}
+
+button:active {
+  transform: translateY(0);
 }
 
 .layout {
   display:none;
   flex-direction:column;
   min-height:100vh;
+  animation: fadeIn 0.4s ease-in;
 }
 
 .feed {
@@ -58,12 +149,30 @@ button {
   padding-bottom:80px;
 }
 
+.feed > textarea {
+  animation: slideInUp 0.5s ease-out;
+}
+
+.feed > button {
+  animation: slideInUp 0.5s ease-out 0.1s both;
+}
+
 .tweet {
   border-bottom:1px solid #333;
   padding:10px;
   display:flex;
   gap:10px;
   align-items:flex-start;
+  animation: slideInUp 0.5s ease-out;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+}
+
+.tweet:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 3px solid #1d9bf0;
+  padding-left: 7px;
 }
 
 .tweet-body {
@@ -72,11 +181,28 @@ button {
 
 .tweet-user {
   cursor:pointer;
+  transition: color 0.2s ease;
+}
+
+.tweet-user:hover {
+  color: #1d9bf0;
 }
 
 #friendsPage, #profilePage {
   display:none;
   padding:20px;
+  animation: slideInUp 0.4s ease-out;
+}
+
+#friendsPage h2 {
+  animation: slideInUp 0.4s ease-out;
+}
+
+#friendsPage h3 {
+  font-size:16px;
+  margin:20px 0 8px 0;
+  color:#71767b;
+  animation: slideInLeft 0.4s ease-out;
 }
 
 .bottom-nav {
@@ -91,10 +217,23 @@ button {
   justify-content:space-around;
   align-items:center;
   font-size:20px;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .bottom-nav span {
   cursor:pointer;
+  transition: all 0.3s ease;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.bottom-nav span:hover {
+  background: rgba(29, 155, 240, 0.2);
+  transform: scale(1.15);
+}
+
+.bottom-nav span:active {
+  transform: scale(0.95);
 }
 
 /* AVATARS */
@@ -111,6 +250,13 @@ button {
   justify-content:center;
   font-weight:bold;
   flex-shrink:0;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.avatar:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.4);
 }
 
 .avatar-small {
@@ -124,22 +270,35 @@ button {
   height:100px;
   font-size:36px;
   margin:0 auto 10px auto;
+  animation: slideInDown 0.5s ease-out;
 }
 
 .profile-header {
   text-align:center;
   margin-bottom:20px;
+  animation: slideInUp 0.4s ease-out;
+}
+
+.profile-header h2 {
+  animation: slideInUp 0.5s ease-out 0.1s both;
 }
 
 .photo-edit {
   text-align:center;
   margin-bottom:20px;
+  animation: slideInUp 0.5s ease-out 0.2s both;
 }
 
 .photo-edit input[type="file"] {
-  background:#111;
+  background:#222;
   color:white;
-  border:1px solid #333;
+  border:2px solid #333;
+  transition: all 0.3s ease;
+}
+
+.photo-edit input[type="file"]:focus {
+  border-color: #1d9bf0;
+  box-shadow: 0 0 12px rgba(29, 155, 240, 0.3);
 }
 
 .hidden {
@@ -152,12 +311,22 @@ button {
   color:#71767b;
   font-size:14px;
   margin-top:6px;
+  transition: all 0.3s ease;
+  display: inline-block;
+}
+
+.comment-toggle:hover {
+  color: #1d9bf0;
+  transform: translateX(4px);
 }
 
 .comments-section {
   margin-top:10px;
   padding-left:12px;
-  border-left:2px solid #333;
+  border-left:2px solid #1d9bf0;
+  animation: expandHeight 0.4s ease-out;
+  overflow: hidden;
+  max-height: 500px;
 }
 
 .comment-item {
@@ -165,6 +334,14 @@ button {
   gap:8px;
   margin:8px 0;
   align-items:flex-start;
+  animation: slideInLeft 0.4s ease-out;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.comment-item:hover {
+  background: rgba(29, 155, 240, 0.1);
 }
 
 .comment-item p {
@@ -176,6 +353,7 @@ button {
   display:flex;
   gap:8px;
   margin-top:8px;
+  animation: slideInUp 0.4s ease-out;
 }
 
 .comment-input-row input {
@@ -188,10 +366,23 @@ button {
   padding:8px 14px;
 }
 
+.like-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  animation: slideInUp 0.5s ease-out 0.1s both;
+}
+
 .like-row button {
   width:auto;
   padding:6px 12px;
-  margin-left:8px;
+  font-size: 12px;
+  transition: all 0.3s ease;
+}
+
+.like-row button:hover {
+  transform: scale(1.1) translateY(-2px);
 }
 
 /* FRIENDS */
@@ -200,6 +391,15 @@ button {
   align-items:center;
   gap:10px;
   margin:10px 0;
+  padding: 10px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  animation: slideInUp 0.4s ease-out;
+}
+
+.friend-item:hover {
+  background: rgba(29, 155, 240, 0.1);
+  transform: translateX(4px);
 }
 
 .friend-item b {
@@ -215,9 +415,15 @@ button {
   background:#555;
 }
 
+.btn-decline:hover {
+  background:#666;
+}
+
 .friend-status {
   color:#1d9bf0;
   font-size:14px;
+  font-weight: bold;
+  animation: pulse 2s infinite;
 }
 
 .friend-pending {
@@ -228,12 +434,7 @@ button {
 .section-empty {
   color:#71767b;
   font-size:14px;
-}
-
-#friendsPage h3 {
-  font-size:16px;
-  margin:20px 0 8px 0;
-  color:#71767b;
+  animation: fadeIn 0.5s ease-in;
 }
 
 /* OWNER BADGE */
@@ -247,9 +448,17 @@ button {
   border-radius:10px;
   margin-left:6px;
   vertical-align:middle;
-} 
+  animation: slideInUp 0.4s ease-out;
+  box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.owner-badge:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
+}
   
-  .member-badge {
+.member-badge {
   display:inline-block;
   background:#1d9bf0;
   color:white;
@@ -259,10 +468,27 @@ button {
   border-radius:10px;
   margin-left:6px;
   vertical-align:middle;
+  animation: slideInUp 0.4s ease-out;
+  box-shadow: 0 2px 8px rgba(29, 155, 240, 0.3);
+  transition: all 0.3s ease;
+}
+
+.member-badge:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(29, 155, 240, 0.5);
 }
 
 #profileBadge {
   margin-top:6px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+textarea:focus {
+  box-shadow: 0 0 12px rgba(29, 155, 240, 0.3);
 }
 
 </style>
@@ -434,10 +660,13 @@ function getUserByUid(uid) {
 
 // LASTNIK APLIKACIJE - ta email vedno dobi "owner" rank
 const OWNER_EMAIL = "matej22441@gmail.com";
-
+const GIRL_EMAIL = "dunovic@gmail.com";
 function ownerBadgeHtml(user) {
   if (user?.role === "owner") {
     return `<span class="owner-badge">👑 OWNER</span>`;
+  }
+  if (user?.role === "girl") {
+    return `<span class="member-badge">💖 Punca</span>`;
   }
   return `<span class="member-badge">MEMBER</span>`;
 }
@@ -455,6 +684,27 @@ async function ensureOwnerRole(authUser) {
     if (!snap.empty) {
       const userDocId = snap.docs[0].id;
       await updateDoc(doc(db, "users", userDocId), { role: "owner" });
+      await loadUsers();
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+// PREVERI/NASTAVI GIRL RANK ZA TRENUTNEGA UPORABNIKA, CE SE UJEMA EMAIL
+async function ensureGirlRole(authUser) {
+  if (!authUser || authUser.email !== GIRL_EMAIL) return;
+
+  const dbUser = getUserByUid(authUser.uid);
+  if (dbUser?.role === "girl") return;
+
+  try {
+    const q = query(collection(db, "users"), where("uid", "==", authUser.uid));
+    const snap = await getDocs(q);
+
+    if (!snap.empty) {
+      const userDocId = snap.docs[0].id;
+      await updateDoc(doc(db, "users", userDocId), { role: "girl" });
       await loadUsers();
     }
   } catch (err) {
@@ -491,6 +741,7 @@ onAuthStateChanged(auth, async (user) => {
     layout.style.display = "flex";
     await loadUsers();
     await ensureOwnerRole(user);
+    await ensureGirlRole(user);
     listenTweets();
     listenAlerts();
   } else {
