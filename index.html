@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<title>X Clone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<!-- AUTH -->
+<div id="auth">
+  <div class="box">
+
+    <div id="loginBox">
+      <h2>Login</h2>
+      <input id="loginUser" type="email" placeholder="Email">
+      <input id="loginPass" type="password" placeholder="Password">
+      <button onclick="login()">Login</button>
+      <button onclick="showRegister()">Register</button>
+    </div>
+
+    <div id="registerBox" style="display:none;">
+      <h2>Register</h2>
+      <input id="regUserName" placeholder="Username">
+      <input id="regUser" type="email" placeholder="Email">
+      <input id="regPass" type="password" placeholder="Password">
+      <button onclick="register()">Register</button>
+      <button onclick="showLogin()">Back</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- APP -->
+<div class="layout">
+
+  <div class="feed">
+    <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
+    <button onclick="addTweet()">Post</button>
+    <div id="tweets"></div>
+  </div>
+
+  <!-- FRIENDS -->
+  <div id="friendsPage">
+    <h2>Friends</h2>
+
+    <h3>Zahteve za prijateljstvo</h3>
+    <div id="friendRequestsList"></div>
+
+    <h3>Tvoji prijatelji</h3>
+    <div id="myFriendsList"></div>
+
+    <h3>Iskanje uporabnikov</h3>
+    <input id="searchUser" placeholder="Search user">
+    <button onclick="searchUsers()">Search</button>
+    <div id="usersList"></div>
+
+    <button onclick="backToFeed()">Back</button>
+  </div>
+
+  <!-- PROFILE -->
+  <div id="profilePage">
+    <div class="profile-header">
+      <div id="profileAvatar" class="avatar avatar-large"></div>
+      <h2 id="profileName"></h2>
+      <div id="profileBadge"></div>
+    </div>
+
+    <div id="photoEditWrap" class="photo-edit hidden">
+      <input id="profilePicInput" type="file" accept="image/*">
+      <button onclick="uploadProfilePic()">Shrani profilno sliko</button>
+
+      <input id="usernameInput" type="text" placeholder="Novo uporabniško ime" style="margin-top:15px;">
+      <button onclick="updateUsername()">Shrani uporabniško ime</button>
+    </div>
+
+    <button onclick="closeProfile()">Back</button>
+
+    <button id="logoutBtn" class="hidden" style="margin-top:10px;background:#333;" onclick="logout()">Odjava</button>
+  </div>
+
+</div>
+
+<!-- NAV -->
+<div class="bottom-nav">
+  <span onclick="goHome()">🏠</span>
+  <span onclick="openFriends()">👥</span>
+  <span onclick="addTweet()">➕</span>
+  <span>🔔</span>
+  <span onclick="openMyProfile()">👤</span>
+</div>
+
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
