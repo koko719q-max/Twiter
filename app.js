@@ -1,4 +1,3 @@
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getAuth,
@@ -33,7 +32,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// DOM FIX (KLJUČNO)
+// DOM
 const authUI = document.getElementById("auth");
 const layout = document.querySelector(".layout");
 
@@ -67,7 +66,71 @@ let friendsCache = [];
 let unsub = null;
 let expandedComments = new Set();
 
+// ─────────────────────────────────────────────
+// NOTIFIKACIJE
+// ─────────────────────────────────────────────
+
+async function requestNotificationPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+}
+
+function showToast(message) {
+  let toast = document.getElementById("toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "toast";
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1d9bf0;
+      color: white;
+      padding: 12px 22px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      max-width: 320px;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    `;
+    document.body.appendChild(toast);
+  }
+  toast.innerText = message;
+  toast.style.opacity = "1";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.opacity = "0";
+  }, 3500);
+}
+
+function sendNotification(title, body) {
+  // Toast v aplikaciji
+  showToast(`${title}: ${body}`);
+
+  // Browser notifikacija
+  if (Notification.permission === "granted") {
+    new Notification(title, {
+      body,
+      icon: "https://abs.twimg.com/favicons/twitter.3.ico"
+    });
+  }
+}
+
+// ─────────────────────────────────────────────
 // USERS
+// ─────────────────────────────────────────────
+
 async function loadUsers() {
   const snap = await getDocs(collection(db, "users"));
   usersCache = snap.docs.map(d => d.data());
@@ -77,9 +140,9 @@ function getUserByUid(uid) {
   return usersCache.find(u => u.uid === uid);
 }
 
-// LASTNIK APLIKACIJE - ta email vedno dobi "owner" rank
 const OWNER_EMAIL = "matej22441@gmail.com";
 const GIRL_EMAIL = "dunovic@gmail.com";
+
 function ownerBadgeHtml(user) {
   if (user?.role === "owner") {
     return `<span class="owner-badge">👑 OWNER</span>`;
@@ -89,20 +152,16 @@ function ownerBadgeHtml(user) {
   }
   return `<span class="member-badge">MEMBER</span>`;
 }
-// PREVERI/NASTAVI OWNER RANK ZA TRENUTNEGA UPORABNIKA, CE SE UJEMA EMAIL
+
 async function ensureOwnerRole(authUser) {
   if (!authUser || authUser.email !== OWNER_EMAIL) return;
-
   const dbUser = getUserByUid(authUser.uid);
   if (dbUser?.role === "owner") return;
-
   try {
     const q = query(collection(db, "users"), where("uid", "==", authUser.uid));
     const snap = await getDocs(q);
-
     if (!snap.empty) {
-      const userDocId = snap.docs[0].id;
-      await updateDoc(doc(db, "users", userDocId), { role: "owner" });
+      await updateDoc(doc(db, "users", snap.docs[0].id), { role: "owner" });
       await loadUsers();
     }
   } catch (err) {
@@ -110,20 +169,15 @@ async function ensureOwnerRole(authUser) {
   }
 }
 
-// PREVERI/NASTAVI GIRL RANK ZA TRENUTNEGA UPORABNIKA, CE SE UJEMA EMAIL
 async function ensureGirlRole(authUser) {
   if (!authUser || authUser.email !== GIRL_EMAIL) return;
-
   const dbUser = getUserByUid(authUser.uid);
   if (dbUser?.role === "girl") return;
-
   try {
     const q = query(collection(db, "users"), where("uid", "==", authUser.uid));
     const snap = await getDocs(q);
-
     if (!snap.empty) {
-      const userDocId = snap.docs[0].id;
-      await updateDoc(doc(db, "users", userDocId), { role: "girl" });
+      await updateDoc(doc(db, "users", snap.docs[0].id), { role: "girl" });
       await loadUsers();
     }
   } catch (err) {
@@ -131,11 +185,13 @@ async function ensureGirlRole(authUser) {
   }
 }
 
-// AVATARS - rendering helper, uporabi sliko ce obstaja, drugace prva crka uporabnika
+// ─────────────────────────────────────────────
+// AVATARS
+// ─────────────────────────────────────────────
+
 function setAvatarEl(el, user, fallbackName) {
   el.innerHTML = "";
   const name = user?.username || fallbackName || "?";
-
   if (user?.photoURL) {
     el.style.backgroundImage = `url(${user.photoURL})`;
     el.innerText = "";
@@ -153,7 +209,10 @@ function avatarHtml(user, fallbackName, sizeClass) {
   return `<div class="avatar ${sizeClass}">${name.charAt(0).toUpperCase()}</div>`;
 }
 
+// ─────────────────────────────────────────────
 // AUTH STATE
+// ─────────────────────────────────────────────
+
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     authUI.style.display = "none";
@@ -161,6 +220,7 @@ onAuthStateChanged(auth, async (user) => {
     await loadUsers();
     await ensureOwnerRole(user);
     await ensureGirlRole(user);
+    await requestNotificationPermission();
     listenTweets();
     listenAlerts();
   } else {
@@ -169,7 +229,10 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+// ─────────────────────────────────────────────
 // REGISTER
+// ─────────────────────────────────────────────
+
 async function register() {
   const username = regUserName.value.trim();
   const email = regUser.value.trim();
@@ -205,7 +268,10 @@ async function register() {
   }
 }
 
+// ─────────────────────────────────────────────
 // LOGIN
+// ─────────────────────────────────────────────
+
 async function login() {
   const email = loginUser.value.trim();
   const pass = loginPass.value;
@@ -223,7 +289,10 @@ async function login() {
   }
 }
 
+// ─────────────────────────────────────────────
 // LOGOUT
+// ─────────────────────────────────────────────
+
 function logout() {
   if (unsub) {
     unsub();
@@ -236,14 +305,22 @@ function logout() {
   signOut(auth);
 }
 
+// ─────────────────────────────────────────────
 // TWEETS
+// ─────────────────────────────────────────────
+
 function listenTweets() {
   if (unsub) unsub();
+
+  let tweetsLoaded = false;
 
   unsub = onSnapshot(collection(db, "tweets"), (snap) => {
     tweets.innerHTML = "";
 
-    snap.forEach(d => {
+    // Razvrsti tweete od najnovejšega do najstarejšega
+    const sortedDocs = snap.docs.slice().sort((a, b) => (b.data().created || 0) - (a.data().created || 0));
+
+    sortedDocs.forEach(d => {
       const t = d.data();
       const u = getUserByUid(t.uid);
 
@@ -277,10 +354,27 @@ function listenTweets() {
         loadComments(d.id);
       }
     });
+
+    // Obvestila za nove tweete (ne ob prvem nalaganju, ne za lastne)
+    if (tweetsLoaded) {
+      snap.docChanges().forEach(change => {
+        if (change.type === "added") {
+          const t = change.doc.data();
+          if (t.uid !== auth.currentUser?.uid) {
+            sendNotification(`📝 ${t.user}`, t.text.slice(0, 80));
+          }
+        }
+      });
+    }
+
+    tweetsLoaded = true;
   });
 }
 
+// ─────────────────────────────────────────────
 // ADD TWEET
+// ─────────────────────────────────────────────
+
 async function addTweet() {
   const text = tweetInput.value.trim();
   if (!text) return;
@@ -320,7 +414,10 @@ async function addTweet() {
   }
 }
 
-// UKAZ /alert <besedilo> - samo OWNER lahko poslje obvestilo VSEM uporabnikom v zivo
+// ─────────────────────────────────────────────
+// /alert UKAZ
+// ─────────────────────────────────────────────
+
 async function handleAlertCommand(rawText) {
   const user = auth.currentUser;
   if (!user) return;
@@ -349,7 +446,10 @@ async function handleAlertCommand(rawText) {
   }
 }
 
-// IZBRISI VSE TWEETE IN KOMENTARJE (UKAZ /clear)
+// ─────────────────────────────────────────────
+// /clear UKAZ
+// ─────────────────────────────────────────────
+
 async function clearAllTweets() {
   const confirmed = confirm(
     "Si prepričan? To bo trajno izbrisalo VSE tweete in komentarje (za vse uporabnike) iz Firebase."
@@ -374,7 +474,10 @@ async function clearAllTweets() {
   }
 }
 
-// POSLUSAJ GLOBALNA OBVESTILA (/alert) V ZIVO IN JIH PRIKAZI VSEM UPORABNIKOM
+// ─────────────────────────────────────────────
+// GLOBALNA OBVESTILA (/alert)
+// ─────────────────────────────────────────────
+
 let alertsUnsub = null;
 let alertsLoaded = false;
 
@@ -394,7 +497,10 @@ function listenAlerts() {
   });
 }
 
+// ─────────────────────────────────────────────
 // LIKE
+// ─────────────────────────────────────────────
+
 async function like(id) {
   try {
     await updateDoc(doc(db, "tweets", id), {
@@ -405,7 +511,10 @@ async function like(id) {
   }
 }
 
+// ─────────────────────────────────────────────
 // KOMENTARJI
+// ─────────────────────────────────────────────
+
 async function toggleComments(tweetId) {
   const section = document.getElementById(`comments-${tweetId}`);
   if (!section) return;
@@ -487,14 +596,16 @@ async function addComment(tweetId) {
   }
 }
 
-// NAVIGACIJA - poskrbi, da je vedno vidna samo ena stran
+// ─────────────────────────────────────────────
+// NAVIGACIJA
+// ─────────────────────────────────────────────
+
 function hideAllPages() {
   document.querySelector(".feed").style.display = "none";
   document.getElementById("friendsPage").style.display = "none";
   profilePage.style.display = "none";
 }
 
-// FRIENDS
 async function openFriends() {
   hideAllPages();
   document.getElementById("friendsPage").style.display = "block";
@@ -512,7 +623,10 @@ function backToFeed() {
   document.querySelector(".feed").style.display = "block";
 }
 
-// NALOZI VSE ODNOSE (PRIJATELJSTVA + ZAHTEVE), KI VKLJUCUJEJO TRENUTNEGA UPORABNIKA
+// ─────────────────────────────────────────────
+// FRIENDS
+// ─────────────────────────────────────────────
+
 async function loadFriends() {
   const user = auth.currentUser;
   if (!user) {
@@ -537,7 +651,6 @@ async function loadFriends() {
   }
 }
 
-// NAJDI ODNOS Z DOLOCENIM UPORABNIKOM (null, pending ali accepted)
 function getRelationship(otherUid) {
   const myUid = auth.currentUser?.uid;
   return (
@@ -549,7 +662,6 @@ function getRelationship(otherUid) {
   );
 }
 
-// PRIKAZI PRISPELE ZAHTEVE ZA PRIJATELJSTVO
 function renderFriendRequests() {
   const myUid = auth.currentUser?.uid;
   const list = document.getElementById("friendRequestsList");
@@ -577,7 +689,6 @@ function renderFriendRequests() {
     .join("");
 }
 
-// PRIKAZI SEZNAM POTRJENIH PRIJATELJEV
 function renderMyFriends() {
   const myUid = auth.currentUser?.uid;
   const list = document.getElementById("myFriendsList");
@@ -605,7 +716,6 @@ function renderMyFriends() {
     .join("");
 }
 
-// POSLJI ZAHTEVO ZA PRIJATELJSTVO
 async function addFriend(uid) {
   const user = auth.currentUser;
   if (!user) return;
@@ -647,7 +757,6 @@ async function addFriend(uid) {
   }
 }
 
-// POTRDI ZAHTEVO ZA PRIJATELJSTVO
 async function confirmFriend(requestId) {
   try {
     await updateDoc(doc(db, "friends", requestId), { status: "accepted" });
@@ -661,7 +770,6 @@ async function confirmFriend(requestId) {
   }
 }
 
-// ZAVRNI ZAHTEVO ZA PRIJATELJSTVO
 async function declineFriend(requestId) {
   try {
     await deleteDoc(doc(db, "friends", requestId));
@@ -674,7 +782,10 @@ async function declineFriend(requestId) {
   }
 }
 
-// SEARCH USERS
+// ─────────────────────────────────────────────
+// ISKANJE UPORABNIKOV
+// ─────────────────────────────────────────────
+
 async function searchUsers() {
   const q = searchUser.value.toLowerCase();
   usersList.innerHTML = "";
@@ -707,7 +818,10 @@ async function searchUsers() {
     });
 }
 
-// SLIKA - pomanjsa in stisne sliko preden jo shranimo v Firestore (base64)
+// ─────────────────────────────────────────────
+// SLIKA - resize pred shranjevanjem v Firestore
+// ─────────────────────────────────────────────
+
 function resizeImage(file, maxSize = 200, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -720,15 +834,9 @@ function resizeImage(file, maxSize = 200, quality = 0.7) {
         let h = img.height;
 
         if (w > h) {
-          if (w > maxSize) {
-            h = Math.round(h * (maxSize / w));
-            w = maxSize;
-          }
+          if (w > maxSize) { h = Math.round(h * (maxSize / w)); w = maxSize; }
         } else {
-          if (h > maxSize) {
-            w = Math.round(w * (maxSize / h));
-            h = maxSize;
-          }
+          if (h > maxSize) { w = Math.round(w * (maxSize / h)); h = maxSize; }
         }
 
         const canvas = document.createElement("canvas");
@@ -750,7 +858,6 @@ function resizeImage(file, maxSize = 200, quality = 0.7) {
   });
 }
 
-// SHRANI PROFILNO SLIKO
 async function uploadProfilePic() {
   const file = profilePicInput.files[0];
   if (!file) {
@@ -771,8 +878,7 @@ async function uploadProfilePic() {
       return;
     }
 
-    const userDocId = snap.docs[0].id;
-    await updateDoc(doc(db, "users", userDocId), { photoURL: dataUrl });
+    await updateDoc(doc(db, "users", snap.docs[0].id), { photoURL: dataUrl });
 
     await loadUsers();
     setAvatarEl(profileAvatar, getUserByUid(user.uid), profileName.innerText);
@@ -784,7 +890,10 @@ async function uploadProfilePic() {
   }
 }
 
-// SHRANI UPORABNIŠKO IME
+// ─────────────────────────────────────────────
+// UPORABNIŠKO IME
+// ─────────────────────────────────────────────
+
 async function updateUsername() {
   const newName = usernameInput.value.trim();
   if (!newName) {
@@ -803,8 +912,7 @@ async function updateUsername() {
       return;
     }
 
-    const userDocId = snap.docs[0].id;
-    await updateDoc(doc(db, "users", userDocId), { username: newName });
+    await updateDoc(doc(db, "users", snap.docs[0].id), { username: newName });
 
     await loadUsers();
 
@@ -821,7 +929,10 @@ async function updateUsername() {
   }
 }
 
-// PROFILE
+// ─────────────────────────────────────────────
+// PROFIL
+// ─────────────────────────────────────────────
+
 async function openProfile(uid) {
   hideAllPages();
   profilePage.style.display = "block";
@@ -854,7 +965,10 @@ function goHome() {
   backToFeed();
 }
 
+// ─────────────────────────────────────────────
 // UI
+// ─────────────────────────────────────────────
+
 function showRegister() {
   loginBox.style.display = "none";
   registerBox.style.display = "block";
@@ -865,7 +979,10 @@ function showLogin() {
   registerBox.style.display = "none";
 }
 
-// EXPORT TO WINDOW
+// ─────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────
+
 window.login = login;
 window.register = register;
 window.addTweet = addTweet;
@@ -887,4 +1004,3 @@ window.addComment = addComment;
 window.logout = logout;
 window.confirmFriend = confirmFriend;
 window.declineFriend = declineFriend;
-
