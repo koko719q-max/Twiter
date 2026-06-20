@@ -1,4 +1,3 @@
-
 import "./warn.js";
 import "./color.js"
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
@@ -118,10 +117,7 @@ function showToast(message) {
 }
 
 function sendNotification(title, body) {
-  // Toast v aplikaciji
   showToast(`${title}: ${body}`);
-
-  // Browser notifikacija
   if (Notification.permission === "granted") {
     new Notification(title, {
       body,
@@ -248,18 +244,15 @@ async function register() {
 
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, pass);
-
     await addDoc(collection(db, "users"), {
       uid: cred.user.uid,
       username,
       email,
       photoURL: null
     });
-
     regUserName.value = "";
     regUser.value = "";
     regPass.value = "";
-
     showLogin();
   } catch (err) {
     console.error(err);
@@ -297,16 +290,70 @@ async function login() {
 // ─────────────────────────────────────────────
 
 function logout() {
-  if (unsub) {
-    unsub();
-    unsub = null;
-  }
-  if (alertsUnsub) {
-    alertsUnsub();
-    alertsUnsub = null;
-  }
+  if (unsub) { unsub(); unsub = null; }
+  if (alertsUnsub) { alertsUnsub(); alertsUnsub = null; }
   signOut(auth);
 }
+
+// ─────────────────────────────────────────────
+// TWEET SLIKA — resize pred objavo
+// ─────────────────────────────────────────────
+
+// Shranjeno v index.html kot selectedImageFile
+let selectedTweetImageFile = null;
+
+function resizeTweetImage(file, maxW = 1080, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let w = img.width;
+        let h = img.height;
+        if (w > maxW) { h = Math.round(h * (maxW / w)); w = maxW; }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Kliče ga index.html ob izbiri datoteke
+window.previewImage = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (file.size > 8 * 1024 * 1024) {
+    alert("Slika je prevelika. Največja dovoljena velikost je 8 MB.");
+    event.target.value = "";
+    return;
+  }
+
+  selectedTweetImageFile = file;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById("imagePreview").src = e.target.result;
+    document.getElementById("imagePreviewWrap").style.display = "block";
+  };
+  reader.readAsDataURL(file);
+};
+
+// Kliče ga index.html pri gumbu ✕
+window.removeImage = function() {
+  selectedTweetImageFile = null;
+  document.getElementById("imagePreview").src = "";
+  document.getElementById("imagePreviewWrap").style.display = "none";
+  document.getElementById("imageInput").value = "";
+};
 
 // ─────────────────────────────────────────────
 // TWEETS
@@ -320,8 +367,9 @@ function listenTweets() {
   unsub = onSnapshot(collection(db, "tweets"), (snap) => {
     tweets.innerHTML = "";
 
-    // Razvrsti tweete od najnovejšega do najstarejšega
-    const sortedDocs = snap.docs.slice().sort((a, b) => (b.data().created || 0) - (a.data().created || 0));
+    const sortedDocs = snap.docs
+      .slice()
+      .sort((a, b) => (b.data().created || 0) - (a.data().created || 0));
 
     sortedDocs.forEach(d => {
       const t = d.data();
@@ -330,11 +378,23 @@ function listenTweets() {
       const div = document.createElement("div");
       div.className = "tweet";
 
+      // Slika v tweetu
+      const imageHtml = t.imageUrl
+        ? `<img
+             class="tweet-image"
+             src="${t.imageUrl}"
+             alt="Tweet slika"
+             onclick="openLightbox('${d.id}')"
+             data-src="${t.imageUrl}"
+           >`
+        : "";
+
       div.innerHTML = `
         ${avatarHtml(u, t.user, "avatar-small")}
         <div class="tweet-body">
           <b class="tweet-user" onclick="openProfile('${t.uid}')">${t.user}</b> ${ownerBadgeHtml(u)}
           <p>${t.text}</p>
+          ${imageHtml}
           <div class="like-row">
             ❤️ ${t.likes} 🔁 ${t.retweets}
           </div>
@@ -358,7 +418,6 @@ function listenTweets() {
       }
     });
 
-    // Obvestila za nove tweete (ne ob prvem nalaganju, ne za lastne)
     if (tweetsLoaded) {
       snap.docChanges().forEach(change => {
         if (change.type === "added") {
@@ -375,30 +434,59 @@ function listenTweets() {
 }
 
 // ─────────────────────────────────────────────
+// LIGHTBOX za slike v tweetih
+// ─────────────────────────────────────────────
+
+window.openLightbox = function(tweetId) {
+  // Poiščemo src slike v DOM (izognemo se shranjevanju v onclick atributu)
+  const img = document.querySelector(`img[onclick="openLightbox('${tweetId}')"]`);
+  if (!img) return;
+  const src = img.dataset.src || img.src;
+
+  const lb = document.getElementById("lightbox");
+  const lbImg = document.getElementById("lightboxImg");
+  if (!lb || !lbImg) return;
+  lbImg.src = src;
+  lb.classList.add("active");
+};
+
+window.closeLightbox = function() {
+  const lb = document.getElementById("lightbox");
+  const lbImg = document.getElementById("lightboxImg");
+  if (lb) lb.classList.remove("active");
+  if (lbImg) lbImg.src = "";
+};
+
+document.getElementById("lightbox")?.addEventListener("click", function(e) {
+  if (e.target === this) window.closeLightbox();
+});
+
+// ─────────────────────────────────────────────
 // ADD TWEET
 // ─────────────────────────────────────────────
+
 async function addTweet() {
   const text = tweetInput.value.trim();
-  if (!text) return;
 
+  // Dovoli objavo samo slike (brez besedila)
+  if (!text && !selectedTweetImageFile) return;
+
+  // Ukazi
   if (text.toLowerCase().startsWith("/warn")) {
     await window.handleWarnCommand(text);
     tweetInput.value = "";
     return;
   }
-
   if (text.toLowerCase() === "/clear") {
     await clearAllTweets();
     tweetInput.value = "";
     return;
   }
-
   if (text.toLowerCase().startsWith("/alert")) {
     await handleAlertCommand(text);
     tweetInput.value = "";
     return;
   }
-
   if (text.toLowerCase() === "/backup") {
     await handleBackupCommand();
     tweetInput.value = "";
@@ -411,17 +499,24 @@ async function addTweet() {
   const dbUser = usersCache.find(u => u.uid === user.uid);
 
   try {
-    let finalText = text;
+    showToast("⏳ Objavljam...");
 
-    // OWNER COLOR SYSTEM
-    if (dbUser?.role === "owner" && window.applyColors) {
+    let finalText = text;
+    if (dbUser?.role === "owner" && window.applyColors && text) {
       finalText = window.applyColors(text);
+    }
+
+    // Resize in pretvori sliko v base64 (če obstaja)
+    let imageUrl = null;
+    if (selectedTweetImageFile) {
+      imageUrl = await resizeTweetImage(selectedTweetImageFile);
     }
 
     await addDoc(collection(db, "tweets"), {
       uid: user.uid,
       user: dbUser?.username || user.email,
       text: finalText,
+      imageUrl: imageUrl,   // null če ni slike
       likes: 0,
       comments: 0,
       retweets: 0,
@@ -429,9 +524,16 @@ async function addTweet() {
     });
 
     tweetInput.value = "";
+    window.removeImage();
+    showToast("✅ Objavljeno!");
   } catch (err) {
     console.error(err);
-    alert("Napaka pri objavi tweeta");
+    // Firestore ima omejitev ~1 MB na dokument — pokažemo koristno sporočilo
+    if (err.message?.includes("400") || err.message?.includes("too large")) {
+      alert("Slika je prevelika za shranjevanje. Poskusi z manjšo sliko.");
+    } else {
+      alert("Napaka pri objavi tweeta");
+    }
   }
 }
 
@@ -442,18 +544,11 @@ async function addTweet() {
 async function handleAlertCommand(rawText) {
   const user = auth.currentUser;
   if (!user) return;
-
   const dbUser = getUserByUid(user.uid);
-  if (dbUser?.role !== "owner") {
-    alert("Ta ukaz lahko uporabi samo OWNER");
-    return;
-  }
+  if (dbUser?.role !== "owner") { alert("Ta ukaz lahko uporabi samo OWNER"); return; }
 
   const message = rawText.slice(6).trim();
-  if (!message) {
-    alert("Uporaba: /alert tvoje sporočilo");
-    return;
-  }
+  if (!message) { alert("Uporaba: /alert tvoje sporočilo"); return; }
 
   try {
     await addDoc(collection(db, "alerts"), {
@@ -486,7 +581,6 @@ async function clearAllTweets() {
     commentsSnap.forEach(d => deletions.push(deleteDoc(doc(db, "comments", d.id))));
 
     await Promise.all(deletions);
-
     expandedComments.clear();
     alert("Vsi tweeti in komentarji so izbrisani");
   } catch (err) {
@@ -502,12 +596,8 @@ async function clearAllTweets() {
 async function handleBackupCommand() {
   const user = auth.currentUser;
   if (!user) return;
-
   const dbUser = getUserByUid(user.uid);
-  if (dbUser?.role !== "owner") {
-    alert("Ta ukaz lahko uporabi samo OWNER");
-    return;
-  }
+  if (dbUser?.role !== "owner") { alert("Ta ukaz lahko uporabi samo OWNER"); return; }
 
   try {
     showToast("⏳ Pripravljam backup...");
@@ -527,10 +617,7 @@ async function handleBackupCommand() {
       friends:  friendsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
     };
 
-    const blob = new Blob([JSON.stringify(backup, null, 2)], {
-      type: "application/json"
-    });
-
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -574,9 +661,7 @@ function listenAlerts() {
 
 async function like(id) {
   try {
-    await updateDoc(doc(db, "tweets", id), {
-      likes: increment(1)
-    });
+    await updateDoc(doc(db, "tweets", id), { likes: increment(1) });
   } catch (err) {
     console.error(err);
   }
@@ -591,7 +676,6 @@ async function toggleComments(tweetId) {
   if (!section) return;
 
   const isHidden = section.style.display === "none" || !section.style.display;
-
   if (isHidden) {
     expandedComments.add(tweetId);
     section.style.display = "block";
@@ -610,9 +694,7 @@ async function loadComments(tweetId) {
     const q = query(collection(db, "comments"), where("tweetId", "==", tweetId));
     const snap = await getDocs(q);
 
-    const comments = snap.docs
-      .map(d => d.data())
-      .sort((a, b) => a.created - b.created);
+    const comments = snap.docs.map(d => d.data()).sort((a, b) => a.created - b.created);
 
     listEl.innerHTML = comments
       .map(c => {
@@ -654,11 +736,7 @@ async function addComment(tweetId) {
       text,
       created: Date.now()
     });
-
-    await updateDoc(doc(db, "tweets", tweetId), {
-      comments: increment(1)
-    });
-
+    await updateDoc(doc(db, "tweets", tweetId), { comments: increment(1) });
     input.value = "";
     await loadComments(tweetId);
   } catch (err) {
@@ -680,11 +758,9 @@ function hideAllPages() {
 async function openFriends() {
   hideAllPages();
   document.getElementById("friendsPage").style.display = "block";
-
   await loadFriends();
   renderFriendRequests();
   renderMyFriends();
-
   usersList.innerHTML = "";
   searchUser.value = "";
 }
@@ -700,21 +776,16 @@ function backToFeed() {
 
 async function loadFriends() {
   const user = auth.currentUser;
-  if (!user) {
-    friendsCache = [];
-    return;
-  }
+  if (!user) { friendsCache = []; return; }
 
   try {
     const q1 = query(collection(db, "friends"), where("from", "==", user.uid));
     const q2 = query(collection(db, "friends"), where("to", "==", user.uid));
-
     const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
 
     const map = new Map();
     snap1.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
     snap2.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
-
     friendsCache = Array.from(map.values());
   } catch (err) {
     console.error(err);
@@ -724,13 +795,9 @@ async function loadFriends() {
 
 function getRelationship(otherUid) {
   const myUid = auth.currentUser?.uid;
-  return (
-    friendsCache.find(
-      f =>
-        (f.from === myUid && f.to === otherUid) ||
-        (f.from === otherUid && f.to === myUid)
-    ) || null
-  );
+  return friendsCache.find(
+    f => (f.from === myUid && f.to === otherUid) || (f.from === otherUid && f.to === myUid)
+  ) || null;
 }
 
 function renderFriendRequests() {
@@ -739,25 +806,22 @@ function renderFriendRequests() {
   if (!list) return;
 
   const requests = friendsCache.filter(f => f.to === myUid && f.status === "pending");
-
   if (requests.length === 0) {
     list.innerHTML = `<p class="section-empty">Trenutno ni novih zahtev</p>`;
     return;
   }
 
-  list.innerHTML = requests
-    .map(r => {
-      const u = getUserByUid(r.from);
-      return `
-        <div class="friend-item">
-          ${avatarHtml(u, u?.username, "avatar-small")}
-          <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
-          <button class="btn-auto" onclick="confirmFriend('${r.id}')">Potrdi</button>
-          <button class="btn-auto btn-decline" onclick="declineFriend('${r.id}')">Zavrni</button>
-        </div>
-      `;
-    })
-    .join("");
+  list.innerHTML = requests.map(r => {
+    const u = getUserByUid(r.from);
+    return `
+      <div class="friend-item">
+        ${avatarHtml(u, u?.username, "avatar-small")}
+        <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
+        <button class="btn-auto" onclick="confirmFriend('${r.id}')">Potrdi</button>
+        <button class="btn-auto btn-decline" onclick="declineFriend('${r.id}')">Zavrni</button>
+      </div>
+    `;
+  }).join("");
 }
 
 function renderMyFriends() {
@@ -766,45 +830,34 @@ function renderMyFriends() {
   if (!list) return;
 
   const friends = friendsCache.filter(f => f.status === "accepted");
-
   if (friends.length === 0) {
     list.innerHTML = `<p class="section-empty">Še nimaš prijateljev</p>`;
     return;
   }
 
-  list.innerHTML = friends
-    .map(f => {
-      const otherUid = f.from === myUid ? f.to : f.from;
-      const u = getUserByUid(otherUid);
-      return `
-        <div class="friend-item" style="cursor:pointer;" onclick="openProfile('${otherUid}')">
-          ${avatarHtml(u, u?.username, "avatar-small")}
-          <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
-          <span class="friend-status">✓ Prijatelja</span>
-        </div>
-      `;
-    })
-    .join("");
+  list.innerHTML = friends.map(f => {
+    const otherUid = f.from === myUid ? f.to : f.from;
+    const u = getUserByUid(otherUid);
+    return `
+      <div class="friend-item" style="cursor:pointer;" onclick="openProfile('${otherUid}')">
+        ${avatarHtml(u, u?.username, "avatar-small")}
+        <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
+        <span class="friend-status">✓ Prijatelja</span>
+      </div>
+    `;
+  }).join("");
 }
 
 async function addFriend(uid) {
   const user = auth.currentUser;
   if (!user) return;
-
-  if (user.uid === uid) {
-    alert("Ne moreš dodati samega sebe");
-    return;
-  }
+  if (user.uid === uid) { alert("Ne moreš dodati samega sebe"); return; }
 
   const rel = getRelationship(uid);
   if (rel) {
-    if (rel.status === "accepted") {
-      alert("Ta uporabnik je že tvoj prijatelj");
-    } else if (rel.from === user.uid) {
-      alert("Zahteva je že poslana, čakaš na potrditev");
-    } else {
-      alert("Ta uporabnik ti je že poslal zahtevo - potrdi jo zgoraj");
-    }
+    if (rel.status === "accepted") alert("Ta uporabnik je že tvoj prijatelj");
+    else if (rel.from === user.uid) alert("Zahteva je že poslana, čakaš na potrditev");
+    else alert("Ta uporabnik ti je že poslal zahtevo - potrdi jo zgoraj");
     return;
   }
 
@@ -815,12 +868,10 @@ async function addFriend(uid) {
       status: "pending",
       created: Date.now()
     });
-
     await loadFriends();
     searchUsers();
     renderFriendRequests();
     renderMyFriends();
-
     alert("Zahteva za prijateljstvo poslana");
   } catch (err) {
     console.error(err);
@@ -869,13 +920,9 @@ async function searchUsers() {
       let actionHtml = `<button class="btn-auto" onclick="addFriend('${u.uid}')">Add</button>`;
 
       if (rel) {
-        if (rel.status === "accepted") {
-          actionHtml = `<span class="friend-status">✓ Prijatelja</span>`;
-        } else if (rel.from === auth.currentUser?.uid) {
-          actionHtml = `<span class="friend-pending">Zahteva poslana</span>`;
-        } else {
-          actionHtml = `<button class="btn-auto" onclick="confirmFriend('${rel.id}')">Potrdi</button>`;
-        }
+        if (rel.status === "accepted") actionHtml = `<span class="friend-status">✓ Prijatelja</span>`;
+        else if (rel.from === auth.currentUser?.uid) actionHtml = `<span class="friend-pending">Zahteva poslana</span>`;
+        else actionHtml = `<button class="btn-auto" onclick="confirmFriend('${rel.id}')">Potrdi</button>`;
       }
 
       const div = document.createElement("div");
@@ -890,67 +937,46 @@ async function searchUsers() {
 }
 
 // ─────────────────────────────────────────────
-// SLIKA - resize pred shranjevanjem v Firestore
+// PROFILNA SLIKA — resize (200px, za Firestore)
 // ─────────────────────────────────────────────
 
 function resizeImage(file, maxSize = 200, quality = 0.7) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-
+    reader.onerror = reject;
     reader.onload = (e) => {
       const img = new Image();
-
+      img.onerror = reject;
       img.onload = () => {
-        let w = img.width;
-        let h = img.height;
-
-        if (w > h) {
-          if (w > maxSize) { h = Math.round(h * (maxSize / w)); w = maxSize; }
-        } else {
-          if (h > maxSize) { w = Math.round(w * (maxSize / h)); h = maxSize; }
-        }
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > maxSize) { h = Math.round(h * (maxSize / w)); w = maxSize; } }
+        else { if (h > maxSize) { w = Math.round(w * (maxSize / h)); h = maxSize; } }
 
         const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, w, h);
-
+        canvas.width = w; canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
-
-      img.onerror = reject;
       img.src = e.target.result;
     };
-
-    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
 
 async function uploadProfilePic() {
   const file = profilePicInput.files[0];
-  if (!file) {
-    alert("Najprej izberi sliko");
-    return;
-  }
+  if (!file) { alert("Najprej izberi sliko"); return; }
 
   const user = auth.currentUser;
 
   try {
     const dataUrl = await resizeImage(file, 200, 0.7);
-
     const q = query(collection(db, "users"), where("uid", "==", user.uid));
     const snap = await getDocs(q);
 
-    if (snap.empty) {
-      alert("Uporabniškega profila ni mogoče najti");
-      return;
-    }
+    if (snap.empty) { alert("Uporabniškega profila ni mogoče najti"); return; }
 
     await updateDoc(doc(db, "users", snap.docs[0].id), { photoURL: dataUrl });
-
     await loadUsers();
     setAvatarEl(profileAvatar, getUserByUid(user.uid), profileName.innerText);
     profilePicInput.value = "";
@@ -967,24 +993,16 @@ async function uploadProfilePic() {
 
 async function updateUsername() {
   const newName = usernameInput.value.trim();
-  if (!newName) {
-    alert("Vnesi novo uporabniško ime");
-    return;
-  }
+  if (!newName) { alert("Vnesi novo uporabniško ime"); return; }
 
   const user = auth.currentUser;
 
   try {
     const q = query(collection(db, "users"), where("uid", "==", user.uid));
     const snap = await getDocs(q);
-
-    if (snap.empty) {
-      alert("Uporabniškega profila ni mogoče najti");
-      return;
-    }
+    if (snap.empty) { alert("Uporabniškega profila ni mogoče najti"); return; }
 
     await updateDoc(doc(db, "users", snap.docs[0].id), { username: newName });
-
     await loadUsers();
 
     const updatedUser = getUserByUid(user.uid);
@@ -1017,9 +1035,7 @@ async function openProfile(uid) {
   photoEditWrap.classList.toggle("hidden", !isOwnProfile);
   logoutBtn.classList.toggle("hidden", !isOwnProfile);
 
-  if (isOwnProfile) {
-    usernameInput.value = user?.username || "";
-  }
+  if (isOwnProfile) usernameInput.value = user?.username || "";
 }
 
 function closeProfile() {
@@ -1032,23 +1048,14 @@ function openMyProfile() {
   openProfile(auth.currentUser.uid);
 }
 
-function goHome() {
-  backToFeed();
-}
+function goHome() { backToFeed(); }
 
 // ─────────────────────────────────────────────
 // UI
 // ─────────────────────────────────────────────
 
-function showRegister() {
-  loginBox.style.display = "none";
-  registerBox.style.display = "block";
-}
-
-function showLogin() {
-  loginBox.style.display = "block";
-  registerBox.style.display = "none";
-}
+function showRegister() { loginBox.style.display = "none"; registerBox.style.display = "block"; }
+function showLogin() { loginBox.style.display = "block"; registerBox.style.display = "none"; }
 
 // ─────────────────────────────────────────────
 // EXPORT
