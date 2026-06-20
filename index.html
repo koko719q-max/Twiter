@@ -5,6 +5,124 @@
 <title>X Clone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="style.css">
+<style>
+  /* Image upload additions */
+  .tweet-compose {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .tweet-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .tweet-media-btns {
+    display: flex;
+    gap: 8px;
+  }
+
+  .media-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 20px;
+    padding: 4px 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+  }
+
+  .media-btn:hover {
+    background: rgba(29, 161, 242, 0.1);
+  }
+
+  #imageInput {
+    display: none;
+  }
+
+  #imagePreviewWrap {
+    display: none;
+    position: relative;
+    margin-top: 8px;
+  }
+
+  #imagePreviewWrap img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 12px;
+    object-fit: cover;
+    display: block;
+  }
+
+  #removeImageBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  #removeImageBtn:hover {
+    background: rgba(0,0,0,0.9);
+  }
+
+  /* Tweet image display */
+  .tweet-image {
+    max-width: 100%;
+    border-radius: 12px;
+    margin-top: 10px;
+    cursor: pointer;
+    display: block;
+  }
+
+  /* Lightbox */
+  #lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #lightbox.active {
+    display: flex;
+  }
+
+  #lightbox img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+    object-fit: contain;
+  }
+
+  #lightboxClose {
+    position: fixed;
+    top: 18px;
+    right: 22px;
+    color: white;
+    font-size: 32px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    line-height: 1;
+    z-index: 10000;
+  }
+</style>
 </head>
 
 <body>
@@ -37,8 +155,32 @@
 <div class="layout">
 
   <div class="feed">
-    <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
-    <button onclick="addTweet()">Post</button>
+    <!-- Tweet compose box -->
+    <div class="tweet-compose">
+      <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
+
+      <!-- Image preview -->
+      <div id="imagePreviewWrap">
+        <img id="imagePreview" src="" alt="Predogled slike">
+        <button id="removeImageBtn" onclick="removeImage()" title="Odstrani sliko">✕</button>
+      </div>
+
+      <div class="tweet-actions-row">
+        <div class="tweet-media-btns">
+          <!-- Hidden file input -->
+          <input
+            id="imageInput"
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            onchange="previewImage(event)"
+          >
+          <!-- Image button triggers file input -->
+          <button class="media-btn" onclick="document.getElementById('imageInput').click()" title="Dodaj sliko">🖼️</button>
+        </div>
+        <button onclick="addTweet()">Post</button>
+      </div>
+    </div>
+
     <div id="tweets"></div>
   </div>
 
@@ -91,6 +233,79 @@
   <span>🔔</span>
   <span onclick="openMyProfile()">👤</span>
 </div>
+
+<!-- Lightbox za prikaz slik v polni velikosti -->
+<div id="lightbox">
+  <button id="lightboxClose" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="Slika v polni velikosti">
+</div>
+
+<script>
+  // ── Image preview before posting ──────────────────────────────
+  let selectedImageBase64 = null;
+
+  function previewImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Max 5 MB
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Slika je prevelika. Največja dovoljena velikost je 5 MB.');
+      event.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      selectedImageBase64 = e.target.result; // data URL (base64)
+      document.getElementById('imagePreview').src = selectedImageBase64;
+      document.getElementById('imagePreviewWrap').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function removeImage() {
+    selectedImageBase64 = null;
+    document.getElementById('imagePreview').src = '';
+    document.getElementById('imagePreviewWrap').style.display = 'none';
+    document.getElementById('imageInput').value = '';
+  }
+
+  // ── Expose selectedImageBase64 so app.js can read it ──────────
+  // app.js should call getSelectedImage() to get the base64 string,
+  // then call clearSelectedImage() after the tweet is posted.
+  window.getSelectedImage = () => selectedImageBase64;
+  window.clearSelectedImage = () => removeImage();
+
+  // ── Render tweet image inside a tweet card ─────────────────────
+  // Call this from app.js when building a tweet DOM element:
+  //   renderTweetImage(container, imageBase64)
+  window.renderTweetImage = function(container, imageBase64) {
+    if (!imageBase64) return;
+    const img = document.createElement('img');
+    img.src = imageBase64;
+    img.className = 'tweet-image';
+    img.alt = 'Tweet slika';
+    img.onclick = () => openLightbox(imageBase64);
+    container.appendChild(img);
+  };
+
+  // ── Lightbox ──────────────────────────────────────────────────
+  function openLightbox(src) {
+    document.getElementById('lightboxImg').src = src;
+    document.getElementById('lightbox').classList.add('active');
+  }
+
+  function closeLightbox() {
+    document.getElementById('lightbox').classList.remove('active');
+    document.getElementById('lightboxImg').src = '';
+  }
+
+  // Close lightbox on background click
+  document.getElementById('lightbox').addEventListener('click', function(e) {
+    if (e.target === this) closeLightbox();
+  });
+</script>
 
 <script type="module" src="app.js"></script>
 
