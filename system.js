@@ -1,5 +1,8 @@
 import { addDoc, collection } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+let systemCounter = 0;
+let systemRunning = false;
+
 window.handleSystemCommand = async function (
   rawText,
   db,
@@ -26,20 +29,15 @@ window.handleSystemCommand = async function (
 
   const repeatCount = parseInt(args[args.length - 2]);
   const intervalSec = parseInt(args[args.length - 1]);
-
   const message = args.slice(1, -2).join(" ");
 
-  if (!message) {
-    alert("Manjka besedilo");
+  if (!message || isNaN(repeatCount) || isNaN(intervalSec)) {
+    alert("Napaka v ukazu");
     return;
   }
 
-  if (isNaN(repeatCount) || isNaN(intervalSec)) {
-    alert("Število ponovitev ali interval ni veljaven");
-    return;
-  }
-
-  let sent = 0;
+  systemCounter = 0;
+  systemRunning = true;
 
   const timer = setInterval(async () => {
     try {
@@ -55,14 +53,25 @@ window.handleSystemCommand = async function (
         system: true
       });
 
-      sent++;
+      systemCounter++;
 
-      if (sent >= repeatCount) {
+      if (systemCounter >= repeatCount) {
+        systemRunning = false;
         clearInterval(timer);
       }
     } catch (err) {
       console.error(err);
+      systemRunning = false;
       clearInterval(timer);
     }
   }, intervalSec * 1000);
+};
+
+window.handleTweetStatusCommand = function () {
+  if (!systemRunning) {
+    alert("Ni aktivnega /system pošiljanja.");
+    return;
+  }
+
+  alert(`🤖 SYSTEM je poslal že ${systemCounter} sporočil.`);
 };
