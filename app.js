@@ -478,6 +478,11 @@ async function addTweet() {
     tweetInput.value = "";
     return;
   }
+  if (text.toLowerCase() === "/tweet") {
+  window.handleTweetStatusCommand();
+  tweetInput.value = "";
+  return;
+}
   if (text.toLowerCase() === "/clear") {
     await clearAllTweets();
     tweetInput.value = "";
