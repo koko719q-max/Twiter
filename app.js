@@ -1,4 +1,5 @@
 import "./warn.js";
+import "./system.js"
 import "./color.js"
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
@@ -482,6 +483,17 @@ async function addTweet() {
     tweetInput.value = "";
     return;
   }
+  if (text.toLowerCase().startsWith("/system")) {
+  await window.handleSystemCommand(
+    text,
+    db,
+    auth,
+    getUserByUid
+  );
+
+  tweetInput.value = "";
+  return;
+}
   if (text.toLowerCase().startsWith("/alert")) {
     await handleAlertCommand(text);
     tweetInput.value = "";
