@@ -88,6 +88,74 @@
     display: block;
   }
 
+  /* Video upload additions */
+  #videoInput {
+    display: none;
+  }
+
+  #videoPreviewWrap {
+    display: none;
+    position: relative;
+    margin-top: 8px;
+  }
+
+  #videoPreviewWrap video {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 12px;
+    display: block;
+    background: #000;
+  }
+
+  #removeVideoBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  #removeVideoBtn:hover {
+    background: rgba(0,0,0,0.9);
+  }
+
+  /* Tweet video display */
+  .tweet-video {
+    max-width: 100%;
+    border-radius: 12px;
+    margin-top: 10px;
+    display: block;
+    background: #000;
+  }
+
+  /* Upload progress bar (za video nalaganje v Firebase Storage) */
+  .upload-progress-wrap {
+    width: 100%;
+    height: 4px;
+    background: rgba(29, 161, 242, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 6px;
+    display: none;
+  }
+
+  .upload-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: #1d9bf0;
+    transition: width 0.15s ease;
+  }
+
   /* Lightbox */
   #lightbox {
     display: none;
@@ -122,6 +190,450 @@
     line-height: 1;
     z-index: 10000;
   }
+  /* ==================================
+   ANIMATED X LOGIN PAGE
+   ================================== */
+
+#auth{
+  position:fixed;
+  inset:0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  background:#000;
+  overflow:hidden;
+  z-index:99999;
+}
+
+/* Animated background */
+#auth::before{
+  content:"";
+  position:absolute;
+  width:200%;
+  height:200%;
+
+  background:
+    radial-gradient(circle at 20% 20%, #1d9bf0 0%, transparent 20%),
+    radial-gradient(circle at 80% 30%, #7c3aed 0%, transparent 20%),
+    radial-gradient(circle at 50% 80%, #06b6d4 0%, transparent 25%);
+
+  filter:blur(0px);
+
+  animation:bgRotate 20s linear infinite;
+}
+
+@keyframes bgRotate{
+  from{
+    transform:rotate(0deg) scale(1);
+  }
+  to{
+    transform:rotate(360deg) scale(1.2);
+  }
+}
+
+/* Login card */
+#auth .box{
+  position:relative;
+  z-index:2;
+
+  width:360px;
+  max-width:90vw;
+
+  padding:30px;
+
+  border-radius:24px;
+
+  background:rgba(255,255,255,.08);
+
+  backdrop-filter:blur(20px);
+
+  border:1px solid rgba(255,255,255,.12);
+
+  box-shadow:
+    0 0 40px rgba(29,155,240,.25),
+    0 20px 60px rgba(0,0,0,.6);
+
+  animation:
+    loginShow .8s ease,
+    floatCard 5s ease-in-out infinite;
+}
+
+@keyframes loginShow{
+  from{
+    opacity:0;
+    transform:translateY(40px) scale(.9);
+  }
+
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+@keyframes floatCard{
+  0%,100%{
+    transform:translateY(0);
+  }
+
+  50%{
+    transform:translateY(-10px);
+  }
+}
+
+/* Titles */
+#auth h2{
+  text-align:center;
+  color:white;
+  font-size:30px;
+  margin-bottom:20px;
+  letter-spacing:1px;
+}
+
+/* X logo automatically */
+#auth h2::before{
+  content:"𝕏";
+  display:block;
+  font-size:60px;
+  margin-bottom:10px;
+
+  animation:xPulse 3s infinite;
+}
+
+@keyframes xPulse{
+  0%,100%{
+    transform:scale(1);
+  }
+
+  50%{
+    transform:scale(1.1);
+  }
+}
+
+/* Inputs */
+#auth input{
+  width:100%;
+
+  padding:14px;
+  margin-bottom:12px;
+
+  border-radius:12px;
+
+  border:1px solid rgba(255,255,255,.15);
+
+  background:rgba(255,255,255,.05);
+
+  color:white;
+
+  transition:.3s;
+}
+
+#auth input::placeholder{
+  color:rgba(255,255,255,.6);
+}
+
+#auth input:focus{
+  outline:none;
+
+  border-color:#1d9bf0;
+
+  box-shadow:
+    0 0 20px rgba(29,155,240,.55);
+
+  transform:scale(1.02);
+}
+
+/* Buttons */
+#auth button{
+  width:100%;
+
+  padding:14px;
+  margin-top:8px;
+
+  border:none;
+  border-radius:12px;
+
+  color:white;
+  font-weight:700;
+
+  cursor:pointer;
+
+  background:linear-gradient(
+    135deg,
+    #1d9bf0,
+    #0f7dd1
+  );
+
+  transition:.25s;
+}
+
+#auth button:hover{
+  transform:translateY(-3px);
+
+  box-shadow:
+    0 10px 25px rgba(29,155,240,.45);
+}
+
+#auth button:active{
+  transform:scale(.97);
+}
+
+/* Register button */
+#auth button:last-child{
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.15);
+}
+
+#auth button:last-child:hover{
+  background:rgba(255,255,255,.14);
+}
+
+/* Smooth form animation */
+#loginBox,
+#registerBox{
+  animation:fadeSlide .35s ease;
+}
+
+@keyframes fadeSlide{
+  from{
+    opacity:0;
+    transform:translateX(20px);
+  }
+
+  to{
+    opacity:1;
+    transform:translateX(0);
+  }
+}
+
+/* Floating light particles */
+#auth::after{
+  content:"";
+
+  position:absolute;
+  inset:0;
+
+  background-image:
+    radial-gradient(2px 2px at 20% 30%, white, transparent),
+    radial-gradient(2px 2px at 80% 20%, white, transparent),
+    radial-gradient(2px 2px at 40% 80%, white, transparent),
+    radial-gradient(3px 3px at 70% 60%, white, transparent),
+    radial-gradient(2px 2px at 10% 70%, white, transparent);
+
+  opacity:.35;
+
+  animation:starsMove 12s linear infinite;
+}
+
+@keyframes starsMove{
+  from{
+    transform:translateY(0);
+  }
+
+  to{
+    transform:translateY(-40px);
+  }
+}
+  /* ==========================
+   EXTRA PREMIUM ANIMATIONS
+   ========================== */
+
+/* Rainbow border around login card */
+#auth .box::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+
+  border-radius:26px;
+
+  background:linear-gradient(
+    90deg,
+    #1d9bf0,
+    #7c3aed,
+    #06b6d4,
+    #1d9bf0
+  );
+
+  background-size:300% 300%;
+
+  z-index:-1;
+
+  animation:borderFlow 5s linear infinite;
+}
+
+@keyframes borderFlow{
+  0%{
+    background-position:0% 50%;
+  }
+  100%{
+    background-position:300% 50%;
+  }
+}
+
+/* Shining sweep effect */
+#auth .box::after{
+  content:"";
+  position:absolute;
+
+  top:0;
+  left:-120%;
+
+  width:70%;
+  height:100%;
+
+  background:linear-gradient(
+    90deg,
+    transparent,
+    rgba(255,255,255,.15),
+    transparent
+  );
+
+  transform:skewX(-25deg);
+
+  animation:shine 4s infinite;
+}
+
+@keyframes shine{
+  0%{
+    left:-120%;
+  }
+
+  100%{
+    left:200%;
+  }
+}
+
+/* Floating inputs */
+#auth input{
+  animation:inputFloat 5s ease-in-out infinite;
+}
+
+#auth input:nth-child(2){
+  animation-delay:.3s;
+}
+
+#auth input:nth-child(3){
+  animation-delay:.6s;
+}
+
+@keyframes inputFloat{
+  0%,100%{
+    transform:translateY(0);
+  }
+
+  50%{
+    transform:translateY(-2px);
+  }
+}
+
+/* Login title glow */
+#auth h2{
+  animation:titleGlow 3s ease-in-out infinite;
+}
+
+@keyframes titleGlow{
+  0%,100%{
+    text-shadow:
+      0 0 10px rgba(29,155,240,.4);
+  }
+
+  50%{
+    text-shadow:
+      0 0 30px rgba(29,155,240,.9),
+      0 0 60px rgba(29,155,240,.4);
+  }
+}
+
+/* Pulsing X logo */
+#auth h2::before{
+  animation:
+    xPulse 2s infinite,
+    xRotate 8s linear infinite;
+}
+
+@keyframes xRotate{
+  0%{
+    transform:rotateY(0deg);
+  }
+
+  100%{
+    transform:rotateY(360deg);
+  }
+}
+
+/* Buttons breathing effect */
+#auth button{
+  animation:buttonBreath 3s infinite;
+}
+
+@keyframes buttonBreath{
+  0%,100%{
+    box-shadow:0 0 10px rgba(29,155,240,.2);
+  }
+
+  50%{
+    box-shadow:
+      0 0 25px rgba(29,155,240,.8),
+      0 0 50px rgba(29,155,240,.3);
+  }
+}
+
+/* Floating circles background */
+.floating-circle{
+  position:fixed;
+  border-radius:50%;
+  pointer-events:none;
+  filter:blur(5px);
+  z-index:0;
+
+  animation:floatCircle linear infinite;
+}
+
+@keyframes floatCircle{
+  from{
+    transform:
+      translateY(110vh)
+      rotate(0deg);
+  }
+
+  to{
+    transform:
+      translateY(-120vh)
+      rotate(360deg);
+  }
+}
+
+/* Card hover tilt */
+#auth .box:hover{
+  transform:
+    translateY(-10px)
+    scale(1.02);
+}
+
+/* Neon focus */
+#auth input:focus{
+  box-shadow:
+    0 0 10px #1d9bf0,
+    0 0 20px #1d9bf0,
+    0 0 40px #1d9bf0,
+    0 0 80px rgba(29,155,240,.4);
+}
+
+/* Smooth page appearance */
+body{
+  animation:pageFade 1s ease;
+}
+
+@keyframes pageFade{
+  from{
+    opacity:0;
+    transform:scale(1.03);
+  }
+
+  to{
+    opacity:1;
+    transform:scale(1);
+  }
+}
 </style>
 </head>
 
@@ -165,9 +677,20 @@
         <button id="removeImageBtn" onclick="removeImage()" title="Odstrani sliko">✕</button>
       </div>
 
+      <!-- Video preview -->
+      <div id="videoPreviewWrap">
+        <video id="videoPreview" controls></video>
+        <button id="removeVideoBtn" onclick="removeVideo()" title="Odstrani video">✕</button>
+      </div>
+
+      <!-- Progress bar za nalaganje videa -->
+      <div id="uploadProgressWrap" class="upload-progress-wrap">
+        <div id="uploadProgressBar" class="upload-progress-bar"></div>
+      </div>
+
       <div class="tweet-actions-row">
         <div class="tweet-media-btns">
-          <!-- Hidden file input -->
+          <!-- Hidden file input - slika -->
           <input
             id="imageInput"
             type="file"
@@ -176,6 +699,16 @@
           >
           <!-- Image button triggers file input -->
           <button class="media-btn" onclick="document.getElementById('imageInput').click()" title="Dodaj sliko">🖼️</button>
+
+          <!-- Hidden file input - video -->
+          <input
+            id="videoInput"
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime"
+            onchange="previewVideo(event)"
+          >
+          <!-- Video button triggers file input -->
+          <button class="media-btn" onclick="document.getElementById('videoInput').click()" title="Dodaj video">🎥</button>
         </div>
         <button onclick="addTweet()">Post</button>
       </div>
@@ -242,6 +775,11 @@
 
 <script>
   // ── Image preview before posting ──────────────────────────────
+  // OPOMBA: app.js (module script spodaj) povozi te funkcije s svojimi
+  // verzijami (ki dodajo resize + povezavo na addTweet), ker se naloži
+  // za tem inline scriptom. Te tukaj služijo kot osnovna/varna privzeta
+  // implementacija in za jasnost kako deluje preview.
+
   let selectedImageBase64 = null;
 
   function previewImage(event) {
@@ -254,6 +792,9 @@
       event.target.value = '';
       return;
     }
+
+    // Slika in video se izključujeta - če je izbran video, ga odstranimo
+    if (typeof removeVideo === 'function') removeVideo();
 
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -272,14 +813,10 @@
   }
 
   // ── Expose selectedImageBase64 so app.js can read it ──────────
-  // app.js should call getSelectedImage() to get the base64 string,
-  // then call clearSelectedImage() after the tweet is posted.
   window.getSelectedImage = () => selectedImageBase64;
   window.clearSelectedImage = () => removeImage();
 
   // ── Render tweet image inside a tweet card ─────────────────────
-  // Call this from app.js when building a tweet DOM element:
-  //   renderTweetImage(container, imageBase64)
   window.renderTweetImage = function(container, imageBase64) {
     if (!imageBase64) return;
     const img = document.createElement('img');
@@ -288,6 +825,74 @@
     img.alt = 'Tweet slika';
     img.onclick = () => openLightbox(imageBase64);
     container.appendChild(img);
+  };
+
+  // ── Video preview before posting ────────────────────────────────
+  // Max 50 MB in 120 sekund - dejansko nalaganje v Firebase Storage
+  // izvede app.js (potrebuje dostop do `storage`/`auth` instanc).
+  const MAX_VIDEO_MB = 50;
+  const MAX_VIDEO_DURATION_SEC = 120;
+  let selectedVideoFile = null;
+  let selectedVideoObjectUrl = null;
+
+  function previewVideo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      alert(`Video je prevelik. Največja dovoljena velikost je ${MAX_VIDEO_MB} MB.`);
+      event.target.value = '';
+      return;
+    }
+
+    const tempUrl = URL.createObjectURL(file);
+    const probe = document.createElement('video');
+    probe.preload = 'metadata';
+    probe.onloadedmetadata = () => {
+      if (probe.duration > MAX_VIDEO_DURATION_SEC) {
+        URL.revokeObjectURL(tempUrl);
+        alert(`Video je predolg. Največja dolžina je ${MAX_VIDEO_DURATION_SEC} sekund.`);
+        event.target.value = '';
+        return;
+      }
+
+      // Slika in video se izključujeta
+      removeImage();
+
+      selectedVideoFile = file;
+      selectedVideoObjectUrl = tempUrl;
+      const preview = document.getElementById('videoPreview');
+      preview.src = tempUrl;
+      document.getElementById('videoPreviewWrap').style.display = 'block';
+    };
+    probe.src = tempUrl;
+  }
+
+  function removeVideo() {
+    selectedVideoFile = null;
+    if (selectedVideoObjectUrl) {
+      URL.revokeObjectURL(selectedVideoObjectUrl);
+      selectedVideoObjectUrl = null;
+    }
+    const preview = document.getElementById('videoPreview');
+    preview.src = '';
+    document.getElementById('videoPreviewWrap').style.display = 'none';
+    document.getElementById('videoInput').value = '';
+  }
+
+  // ── Expose video selection so app.js can read/upload it ─────────
+  window.getSelectedVideo = () => selectedVideoFile;
+  window.clearSelectedVideo = () => removeVideo();
+
+  // ── Render tweet video inside a tweet card ───────────────────────
+  window.renderTweetVideo = function(container, videoUrl) {
+    if (!videoUrl) return;
+    const video = document.createElement('video');
+    video.src = videoUrl;
+    video.className = 'tweet-video';
+    video.controls = true;
+    video.preload = 'metadata';
+    container.appendChild(video);
   };
 
   // ── Lightbox ──────────────────────────────────────────────────
@@ -308,6 +913,30 @@
 </script>
 
 <script type="module" src="app.js"></script>
+<script>
+for(let i=0;i<20;i++){
 
+  const c=document.createElement("div");
+
+  c.className="floating-circle";
+
+  const size=Math.random()*120+40;
+
+  c.style.width=size+"px";
+  c.style.height=size+"px";
+
+  c.style.left=Math.random()*100+"vw";
+
+  c.style.background=
+    `rgba(${Math.random()*100+100},
+           ${Math.random()*100+100},
+           255,0.12)`;
+
+  c.style.animationDuration=
+    (Math.random()*20+15)+"s";
+
+  document.body.appendChild(c);
+}
+</script>
 </body>
 </html>
