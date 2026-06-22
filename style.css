@@ -1,6 +1,38 @@
 
+#storeModal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
 
+.store-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
 
+.store-box {
+  position: relative;
+  width: 320px;
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  z-index: 1;
+}
+
+.store-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.store-open-btn { /* gumb v hero */ }
+.store-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:100; display:flex; align-items:center; justify-content:center; }
+.store-modal { background:#1a1a2e; border-radius:16px; padding:20px; width:90%; max-width:400px; max-height:80vh; overflow-y:auto; }
+.store-modal-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.store-modal-close { background:none; border:none; color:#fff; font-size:18px; cursor:pointer; }
 .system-panel {
   position: fixed;
   right: 20px;

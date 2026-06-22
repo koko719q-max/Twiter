@@ -1,5 +1,6 @@
 import { db, auth } from "./config.js";
 import { hideAllPages } from "./ui.js";
+import { getCoins, addCoins } from "./coins.js";
 import {
   collection,
   getDocs,
@@ -13,64 +14,57 @@ import {
 // ── Badge definicije ──────────────────────────────────
 
 const BADGE_DEFS = [
-  { id: "first_tweet",   type: "tweets",   threshold: 1,    icon: "📝", title: "Prvi tweet",      desc: "Objavi svoj prvi tweet" },
-  { id: "tweets_10",     type: "tweets",   threshold: 10,   icon: "🗞️", title: "Pisatelj",         desc: "Objavi 10 tweetov" },
-  { id: "tweets_50",     type: "tweets",   threshold: 50,   icon: "📚", title: "Kroničar",         desc: "Objavi 50 tweetov" },
-  { id: "tweets_100",    type: "tweets",   threshold: 100,  icon: "🏛️", title: "Legenda feeda",    desc: "Objavi 100 tweetov" },
+  { id: "first_tweet", type: "tweets", threshold: 1, icon: "📝", title: "Prvi tweet", desc: "Objavi svoj prvi tweet" },
+  { id: "tweets_10", type: "tweets", threshold: 10, icon: "🗞️", title: "Pisatelj", desc: "Objavi 10 tweetov" },
+  { id: "tweets_50", type: "tweets", threshold: 50, icon: "📚", title: "Kroničar", desc: "Objavi 50 tweetov" },
+  { id: "tweets_100", type: "tweets", threshold: 100, icon: "🏛️", title: "Legenda feeda", desc: "Objavi 100 tweetov" },
 
-  { id: "likes_10",      type: "likes",    threshold: 10,   icon: "❤️", title: "Priljubljen",      desc: "Zberi 10 likeov skupno" },
-  { id: "likes_100",     type: "likes",    threshold: 100,  icon: "💖", title: "100 likeov",       desc: "Zberi 100 likeov skupno" },
-  { id: "likes_500",     type: "likes",    threshold: 500,  icon: "🔥", title: "Viralno",          desc: "Zberi 500 likeov skupno" },
+  { id: "likes_10", type: "likes", threshold: 10, icon: "❤️", title: "Priljubljen", desc: "Zberi 10 likeov skupno" },
+  { id: "likes_100", type: "likes", threshold: 100, icon: "💖", title: "100 likeov", desc: "Zberi 100 likeov skupno" },
+  { id: "likes_500", type: "likes", threshold: 500, icon: "🔥", title: "Viralno", desc: "Zberi 500 likeov skupno" },
 
-  { id: "comments_5",    type: "comments", threshold: 5,    icon: "💬", title: "Sogovornik",       desc: "Napiši 5 komentarjev" },
-  { id: "comments_25",   type: "comments", threshold: 25,   icon: "🗣️", title: "Razpravljavec",    desc: "Napiši 25 komentarjev" },
+  { id: "comments_5", type: "comments", threshold: 5, icon: "💬", title: "Sogovornik", desc: "Napiši 5 komentarjev" },
+  { id: "comments_25", type: "comments", threshold: 25, icon: "🗣️", title: "Razpravljavec", desc: "Napiši 25 komentarjev" },
 
-  { id: "friends_1",     type: "friends",  threshold: 1,    icon: "🤝", title: "Prvi prijatelj",   desc: "Pridobi 1 prijatelja" },
-  { id: "friends_10",    type: "friends",  threshold: 10,   icon: "👥", title: "Družaben",         desc: "Pridobi 10 prijateljev" },
+  { id: "friends_1", type: "friends", threshold: 1, icon: "🤝", title: "Prvi prijatelj", desc: "Pridobi 1 prijatelja" },
+  { id: "friends_10", type: "friends", threshold: 10, icon: "👥", title: "Družaben", desc: "Pridobi 10 prijateljev" },
 ];
 
 const TYPE_LABELS = {
-  tweets:   { icon: "📝", label: "Tweeti" },
-  likes:    { icon: "❤️", label: "Likes" },
+  tweets: { icon: "📝", label: "Tweeti" },
+  likes: { icon: "❤️", label: "Likes" },
   comments: { icon: "💬", label: "Komentarji" },
-  friends:  { icon: "🤝", label: "Prijatelji" },
+  friends: { icon: "🤝", label: "Prijatelji" },
 };
 
-// ── Firestore branje/pisanje ───────────────────────────
-// Shranjujemo:
-//   unlocked: ["first_tweet", ...]      — odkleneni badge-i (nikoli ne zmanjšamo)
-//   maxStats: { tweets: 5, likes: 12 }  — najvišji kdaj doseženi counti
+// ── Firestore ─────────────────────────────────────────
 
 async function loadRewardDoc(uid) {
-  try {
-    const ref = doc(db, "userRewards", uid);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const data = snap.data();
-      return {
-        unlocked: new Set(data.unlocked || []),
-        maxStats: data.maxStats || {}
-      };
-    }
-  } catch (err) {
-    console.error("Napaka pri branju dosežkov:", err);
+  const ref = doc(db, "userRewards", uid);
+  const snap = await getDoc(ref);
+
+  if (!snap.exists()) {
+    return { unlocked: new Set(), maxStats: {} };
   }
-  return { unlocked: new Set(), maxStats: {} };
+
+  const data = snap.data();
+
+  return {
+    unlocked: new Set(data.unlocked || []),
+    maxStats: data.maxStats || {}
+  };
 }
 
 async function saveRewardDoc(uid, unlocked, maxStats) {
-  try {
-    const ref = doc(db, "userRewards", uid);
-    await setDoc(ref, {
-      unlocked: Array.from(unlocked),
-      maxStats
-    }, { merge: true });
-  } catch (err) {
-    console.error("Napaka pri shranjevanju dosežkov:", err);
-  }
+  const ref = doc(db, "userRewards", uid);
+
+  await setDoc(ref, {
+    unlocked: Array.from(unlocked),
+    maxStats
+  }, { merge: true });
 }
 
-// ── Štetje trenutnih statistik ────────────────────────
+// ── Stats ─────────────────────────────────────────────
 
 async function countUserStats(uid) {
   const stats = { tweets: 0, likes: 0, comments: 0, friends: 0 };
@@ -78,79 +72,80 @@ async function countUserStats(uid) {
   const tweetsSnap = await getDocs(query(collection(db, "tweets"), where("uid", "==", uid)));
   tweetsSnap.forEach(d => {
     stats.tweets += 1;
-    stats.likes += (d.data().likes || 0);
+    stats.likes += d.data().likes || 0;
   });
 
-  try {
-    const commentsSnap = await getDocs(query(collection(db, "comments"), where("uid", "==", uid)));
-    stats.comments = commentsSnap.size;
-  } catch (err) {
-    console.error("Napaka pri branju komentarjev:", err);
-  }
+  const commentsSnap = await getDocs(query(collection(db, "comments"), where("uid", "==", uid)));
+  stats.comments = commentsSnap.size;
 
-  try {
-    const sentSnap = await getDocs(query(
-      collection(db, "friends"),
-      where("from", "==", uid),
-      where("status", "==", "accepted")
-    ));
-    const receivedSnap = await getDocs(query(
-      collection(db, "friends"),
-      where("to", "==", uid),
-      where("status", "==", "accepted")
-    ));
-    stats.friends = sentSnap.size + receivedSnap.size;
-  } catch (err) {
-    console.error("Napaka pri branju prijateljev:", err);
-  }
+  const sentSnap = await getDocs(query(
+    collection(db, "friends"),
+    where("from", "==", uid),
+    where("status", "==", "accepted")
+  ));
+
+  const receivedSnap = await getDocs(query(
+    collection(db, "friends"),
+    where("to", "==", uid),
+    where("status", "==", "accepted")
+  ));
+
+  stats.friends = sentSnap.size + receivedSnap.size;
 
   return stats;
 }
 
-// ── Združi stats + shranjeni podatki ─────────────────
-// effectiveStats = max(trenutni, shranjeni maksimum)
-// Badges se samo dodajajo, nikoli ne odstranjujejo.
+// ── Badge logic ───────────────────────────────────────
 
 async function resolveUnlockedBadges(uid) {
-  const [currentStats, { unlocked: storedUnlocked, maxStats: storedMax }] = await Promise.all([
+  const [currentStats, rewardData, coins] = await Promise.all([
     countUserStats(uid),
-    loadRewardDoc(uid)
+    loadRewardDoc(uid),
+    getCoins(uid)
   ]);
 
-  // Izračunaj efektivne staste — vedno vzamemo višjo vrednost
+  const { unlocked: storedUnlocked, maxStats: storedMax } = rewardData;
+
   const effectiveStats = {};
   for (const type of Object.keys(TYPE_LABELS)) {
-    effectiveStats[type] = Math.max(currentStats[type] || 0, storedMax[type] || 0);
+    effectiveStats[type] = Math.max(
+      currentStats[type] || 0,
+      storedMax[type] || 0
+    );
   }
 
-  // Posodobi shranjeni maksimum
   const newMaxStats = { ...storedMax };
-  let maxChanged = false;
+  let changed = false;
+
   for (const type of Object.keys(TYPE_LABELS)) {
     if ((currentStats[type] || 0) > (storedMax[type] || 0)) {
       newMaxStats[type] = currentStats[type];
-      maxChanged = true;
+      changed = true;
     }
   }
 
-  // Odkleni nove badge-e
-  const unlockedNow = new Set(storedUnlocked);
-  let hasNewUnlock = false;
+  const unlocked = new Set(storedUnlocked);
+  let newUnlock = false;
+
   BADGE_DEFS.forEach(b => {
-    if (!unlockedNow.has(b.id) && effectiveStats[b.type] >= b.threshold) {
-      unlockedNow.add(b.id);
-      hasNewUnlock = true;
+    if (!unlocked.has(b.id) && effectiveStats[b.type] >= b.threshold) {
+      unlocked.add(b.id);
+      newUnlock = true;
     }
   });
 
-  if (hasNewUnlock || maxChanged) {
-    await saveRewardDoc(uid, unlockedNow, newMaxStats);
+  if (newUnlock || changed) {
+    await saveRewardDoc(uid, unlocked, newMaxStats);
   }
 
-  return { stats: effectiveStats, unlockedSet: unlockedNow };
+  return {
+    stats: effectiveStats,
+    unlockedSet: unlocked,
+    coins
+  };
 }
 
-// ── Progress logika ───────────────────────────────────
+// ── Progress ──────────────────────────────────────────
 
 function nextBadgeForType(type, effectiveCount, unlockedSet) {
   const badgesOfType = BADGE_DEFS
@@ -158,6 +153,7 @@ function nextBadgeForType(type, effectiveCount, unlockedSet) {
     .sort((a, b) => a.threshold - b.threshold);
 
   const next = badgesOfType.find(b => !unlockedSet.has(b.id));
+
   const prevThreshold = badgesOfType
     .filter(b => unlockedSet.has(b.id))
     .reduce((max, b) => Math.max(max, b.threshold), 0);
@@ -165,35 +161,56 @@ function nextBadgeForType(type, effectiveCount, unlockedSet) {
   return { next, prevThreshold, effectiveCount };
 }
 
-// ── Render: hero ──────────────────────────────────────
+// ── UI (NE SPREMINJAMO) ───────────────────────────────
 
-function heroHtml(unlockedCount, totalCount) {
+function heroHtml(unlockedCount, totalCount, coins = 0) {
   const pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+
   return `
     <div class="reward-hero">
       <div class="reward-hero-title">
         <span class="reward-hero-icon">🎁</span>
         <span>Dosežki</span>
       </div>
-      <p class="reward-hero-sub">Sledi svojemu napredku na platformi</p>
+
+      <div style="display:flex; gap:10px; align-items:center;">
+        <p class="reward-hero-sub">Sledi svojemu napredku na platformi</p>
+
+        <button id="storeBtn" class="reward-store-btn">
+          🛒 Store
+        </button>
+      </div>
+
       <div class="reward-ring-row">
         <div class="reward-ring" style="--pct:${pct}">
           <span class="reward-ring-label">${pct}%</span>
         </div>
+
         <div class="reward-ring-text">
           <strong>${unlockedCount} / ${totalCount} odklenjenih</strong>
-          <span>${unlockedCount === totalCount ? "Vsi badge-i pridobljeni 🎉" : "Nadaljuj z aktivnostjo, da odklepaš več"}</span>
+          <span>${unlockedCount === totalCount ? "Vsi badge-i pridobljeni 🎉" : "Nadaljuj z aktivnostjo"}</span>
         </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        💰 Coins: <b>${coins}</b>
       </div>
     </div>
   `;
 }
 
-// ── Render: progress bloki ────────────────────────────
-
 function progressBarHtml(type, effectiveCount, unlockedSet) {
   const { label, icon } = TYPE_LABELS[type];
-  const { next, prevThreshold } = nextBadgeForType(type, effectiveCount, unlockedSet);
+
+  const badgesOfType = BADGE_DEFS
+    .filter(b => b.type === type)
+    .sort((a, b) => a.threshold - b.threshold);
+
+  const next = badgesOfType.find(b => !unlockedSet.has(b.id));
+
+  const prevThreshold = badgesOfType
+    .filter(b => unlockedSet.has(b.id))
+    .reduce((max, b) => Math.max(max, b.threshold), 0);
 
   if (!next) {
     return `
@@ -205,14 +222,14 @@ function progressBarHtml(type, effectiveCount, unlockedSet) {
         <div class="reward-progress-track">
           <div class="reward-progress-fill" style="width:100%"></div>
         </div>
-        <div class="reward-progress-done">✓ Vsi badge-i v tej kategoriji pridobljeni</div>
+        <div class="reward-progress-done">✓ dokončano</div>
       </div>
     `;
   }
 
   const span = Math.max(next.threshold - prevThreshold, 1);
   const done = Math.min(Math.max(effectiveCount - prevThreshold, 0), span);
-  const pct  = Math.round((done / span) * 100);
+  const pct = Math.round((done / span) * 100);
 
   return `
     <div class="reward-progress-block">
@@ -220,15 +237,17 @@ function progressBarHtml(type, effectiveCount, unlockedSet) {
         <span><span class="reward-type-icon">${icon}</span>${label}</span>
         <span class="reward-progress-count">${effectiveCount} / ${next.threshold}</span>
       </div>
+
       <div class="reward-progress-track">
         <div class="reward-progress-fill" style="width:${pct}%"></div>
       </div>
-      <div class="reward-progress-next">Naslednji: ${next.icon} ${next.title}</div>
+
+      <div class="reward-progress-next">
+        Naslednji: ${next.icon} ${next.title}
+      </div>
     </div>
   `;
 }
-
-// ── Render: badge kartice ─────────────────────────────
 
 function badgeCardHtml(badge, unlocked) {
   return `
@@ -239,63 +258,48 @@ function badgeCardHtml(badge, unlocked) {
         <div class="reward-badge-desc">${badge.desc}</div>
       </div>
       <div class="reward-badge-status">
-        ${unlocked ? '<div class="reward-badge-check">✓</div>' : '<div class="reward-badge-lock">🔒</div>'}
+        ${unlocked ? "✓" : "🔒"}
       </div>
     </div>
   `;
 }
 
-// ── Glavni render ─────────────────────────────────────
+// ── Render page ───────────────────────────────────────
 
 async function renderRewardsPage() {
   const page = document.getElementById("rewardsPage");
   if (!page) return;
 
-  page.innerHTML = `<div class="reward-loading">Nalagam dosežke...</div>`;
+  page.innerHTML = "Loading...";
 
   const user = auth.currentUser;
   if (!user) {
-    page.innerHTML = `<div class="section-empty">Prijavi se, da vidiš svoje dosežke.</div>`;
+    page.innerHTML = "Login first";
     return;
   }
 
-  let stats, unlockedSet;
-  try {
-    const result = await resolveUnlockedBadges(user.uid);
-    stats = result.stats;
-    unlockedSet = result.unlockedSet;
-  } catch (err) {
-    console.error(err);
-    page.innerHTML = `<div class="section-empty">Napaka pri nalaganju dosežkov.</div>`;
-    return;
-  }
+  const { stats, unlockedSet, coins } = await resolveUnlockedBadges(user.uid);
 
   const unlockedCount = BADGE_DEFS.filter(b => unlockedSet.has(b.id)).length;
 
-  const progressHtml = Object.keys(TYPE_LABELS)
-    .map(type => progressBarHtml(type, stats[type] || 0, unlockedSet))
-    .join("");
-
-  const badgesHtml = BADGE_DEFS
-    .map(b => badgeCardHtml(b, unlockedSet.has(b.id)))
-    .join("");
-
   page.innerHTML = `
-    ${heroHtml(unlockedCount, BADGE_DEFS.length)}
-    <h3>Napredek</h3>
-    ${progressHtml}
-    <h3>Vsi badge-i</h3>
-    <div class="reward-badge-list">
-      ${badgesHtml}
-    </div>
+    ${heroHtml(unlockedCount, BADGE_DEFS.length, coins)}
+
+    <h3>Progress</h3>
+    ${Object.keys(TYPE_LABELS)
+      .map(t => progressBarHtml(t, stats[t] || 0, unlockedSet))
+      .join("")}
+
+    <h3>Badges</h3>
+    ${BADGE_DEFS.map(b => badgeCardHtml(b, unlockedSet.has(b.id))).join("")}
   `;
 }
 
-// ── Odpiranje strani ──────────────────────────────────
+// ── Open page ─────────────────────────────────────────
 
 export function openRewards() {
   hideAllPages();
-  const page = document.getElementById("rewardsPage");
-  if (page) page.style.display = "block";
+  document.getElementById("rewardsPage").style.display = "block";
   renderRewardsPage();
 }
+
