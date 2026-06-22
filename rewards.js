@@ -4,7 +4,10 @@ import {
   collection,
   getDocs,
   query,
-  where
+  where,
+  doc,
+  getDoc,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── Badge definicije ──────────────────────────────────
@@ -34,6 +37,32 @@ const TYPE_LABELS = {
   comments: { icon: "💬", label: "Komentarji" },
   friends:  { icon: "🤝", label: "Prijatelji" },
 };
+
+// ── Trajno shranjeni dosežki (Firestore) ──────────────
+// Zbirka "userRewards", dokument id = uid uporabnika
+// { unlocked: ["first_tweet", "tweets_10", ...] }
+
+async function getUnlockedFromStorage(uid) {
+  try {
+    const ref = doc(db, "userRewards", uid);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      return new Set(snap.data().unlocked || []);
+    }
+  } catch (err) {
+    console.error("Napaka pri branju shranjenih dosežkov:", err);
+  }
+  return new Set();
+}
+
+async function saveUnlockedToStorage(uid, unlockedSet) {
+  try {
+    const ref = doc(db, "userRewards", uid);
+    await setDoc(ref, { unlocked: Array.from(unlockedSet) }, { merge: true });
+  } catch (err) {
+    console.error("Napaka pri shranjevanju dosežkov:", err);
+  }
+}
 
 // ── Pomožne funkcije za štetje ────────────────────────
 
@@ -75,17 +104,50 @@ async function countUserStats(uid) {
   return stats;
 }
 
-function nextBadgeForType(type, currentCount) {
+// ── Združi trenutne statistike z trajno shranjenimi badge-i ──
+
+async function resolveUnlockedBadges(uid) {
+  const [stats, storedUnlocked] = await Promise.all([
+    countUserStats(uid),
+    getUnlockedFromStorage(uid)
+  ]);
+
+  const unlockedNow = new Set(storedUnlocked);
+  let hasNewUnlock = false;
+
+  BADGE_DEFS.forEach(b => {
+    if (!unlockedNow.has(b.id) && stats[b.type] >= b.threshold) {
+      unlockedNow.add(b.id);
+      hasNewUnlock = true;
+    }
+  });
+
+  if (hasNewUnlock) {
+    await saveUnlockedToStorage(uid, unlockedNow);
+  }
+
+  return { stats, unlockedSet: unlockedNow };
+}
+
+function nextBadgeForType(type, currentCount, unlockedSet) {
   const badgesOfType = BADGE_DEFS
     .filter(b => b.type === type)
     .sort((a, b) => a.threshold - b.threshold);
 
-  const next = badgesOfType.find(b => currentCount < b.threshold);
-  const prevThreshold = badgesOfType
-    .filter(b => currentCount >= b.threshold)
+  // "Trenutni efektivni count" za prikaz progresa upošteva tudi trajno
+  // odklenjene badge-e, tudi če je trenutno število nižje (npr. po brisanju).
+  const highestUnlockedThreshold = badgesOfType
+    .filter(b => unlockedSet.has(b.id))
     .reduce((max, b) => Math.max(max, b.threshold), 0);
 
-  return { next, prevThreshold };
+  const effectiveCount = Math.max(currentCount, highestUnlockedThreshold);
+
+  const next = badgesOfType.find(b => !unlockedSet.has(b.id));
+  const prevThreshold = badgesOfType
+    .filter(b => unlockedSet.has(b.id))
+    .reduce((max, b) => Math.max(max, b.threshold), 0);
+
+  return { next, prevThreshold, effectiveCount };
 }
 
 // ── Render: hero z krožnim napredkom ──────────────────
@@ -116,16 +178,16 @@ function heroHtml(unlockedCount, totalCount) {
 
 // ── Render: progress bloki ─────────────────────────────
 
-function progressBarHtml(type, count) {
+function progressBarHtml(type, count, unlockedSet) {
   const { label, icon } = TYPE_LABELS[type];
-  const { next, prevThreshold } = nextBadgeForType(type, count);
+  const { next, prevThreshold, effectiveCount } = nextBadgeForType(type, count, unlockedSet);
 
   if (!next) {
     return `
       <div class="reward-progress-block complete">
         <div class="reward-progress-head">
           <span><span class="reward-type-icon">${icon}</span>${label}</span>
-          <span class="reward-progress-count">${count}</span>
+          <span class="reward-progress-count">${effectiveCount}</span>
         </div>
         <div class="reward-progress-track">
           <div class="reward-progress-fill" style="width:100%"></div>
@@ -136,14 +198,14 @@ function progressBarHtml(type, count) {
   }
 
   const span = Math.max(next.threshold - prevThreshold, 1);
-  const done = Math.min(Math.max(count - prevThreshold, 0), span);
+  const done = Math.min(Math.max(effectiveCount - prevThreshold, 0), span);
   const pct = Math.round((done / span) * 100);
 
   return `
     <div class="reward-progress-block">
       <div class="reward-progress-head">
         <span><span class="reward-type-icon">${icon}</span>${label}</span>
-        <span class="reward-progress-count">${count} / ${next.threshold}</span>
+        <span class="reward-progress-count">${effectiveCount} / ${next.threshold}</span>
       </div>
       <div class="reward-progress-track">
         <div class="reward-progress-fill" style="width:${pct}%"></div>
@@ -184,23 +246,25 @@ async function renderRewardsPage() {
     return;
   }
 
-  let stats;
+  let stats, unlockedSet;
   try {
-    stats = await countUserStats(user.uid);
+    const result = await resolveUnlockedBadges(user.uid);
+    stats = result.stats;
+    unlockedSet = result.unlockedSet;
   } catch (err) {
     console.error(err);
     page.innerHTML = `<div class="section-empty">Napaka pri nalaganju dosežkov.</div>`;
     return;
   }
 
-  const unlockedCount = BADGE_DEFS.filter(b => stats[b.type] >= b.threshold).length;
+  const unlockedCount = BADGE_DEFS.filter(b => unlockedSet.has(b.id)).length;
 
   const progressHtml = Object.keys(TYPE_LABELS)
-    .map(type => progressBarHtml(type, stats[type] || 0))
+    .map(type => progressBarHtml(type, stats[type] || 0, unlockedSet))
     .join("");
 
   const badgesHtml = BADGE_DEFS
-    .map(b => badgeCardHtml(b, stats[b.type] >= b.threshold))
+    .map(b => badgeCardHtml(b, unlockedSet.has(b.id)))
     .join("");
 
   page.innerHTML = `
