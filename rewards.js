@@ -11,8 +11,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 // ── Badge definicije ──────────────────────────────────
-// type: "tweets" | "likes" | "comments" | "friends"
-// threshold: koliko je potrebno za pridobitev badga
 
 const BADGE_DEFS = [
   { id: "first_tweet",   type: "tweets",   threshold: 1,    icon: "📝", title: "Prvi tweet",      desc: "Objavi svoj prvi tweet" },
@@ -38,53 +36,58 @@ const TYPE_LABELS = {
   friends:  { icon: "🤝", label: "Prijatelji" },
 };
 
-// ── Trajno shranjeni dosežki (Firestore) ──────────────
-// Zbirka "userRewards", dokument id = uid uporabnika
-// { unlocked: ["first_tweet", "tweets_10", ...] }
+// ── Firestore branje/pisanje ───────────────────────────
+// Shranjujemo:
+//   unlocked: ["first_tweet", ...]      — odkleneni badge-i (nikoli ne zmanjšamo)
+//   maxStats: { tweets: 5, likes: 12 }  — najvišji kdaj doseženi counti
 
-async function getUnlockedFromStorage(uid) {
+async function loadRewardDoc(uid) {
   try {
     const ref = doc(db, "userRewards", uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
-      return new Set(snap.data().unlocked || []);
+      const data = snap.data();
+      return {
+        unlocked: new Set(data.unlocked || []),
+        maxStats: data.maxStats || {}
+      };
     }
   } catch (err) {
-    console.error("Napaka pri branju shranjenih dosežkov:", err);
+    console.error("Napaka pri branju dosežkov:", err);
   }
-  return new Set();
+  return { unlocked: new Set(), maxStats: {} };
 }
 
-async function saveUnlockedToStorage(uid, unlockedSet) {
+async function saveRewardDoc(uid, unlocked, maxStats) {
   try {
     const ref = doc(db, "userRewards", uid);
-    await setDoc(ref, { unlocked: Array.from(unlockedSet) }, { merge: true });
+    await setDoc(ref, {
+      unlocked: Array.from(unlocked),
+      maxStats
+    }, { merge: true });
   } catch (err) {
     console.error("Napaka pri shranjevanju dosežkov:", err);
   }
 }
 
-// ── Pomožne funkcije za štetje ────────────────────────
+// ── Štetje trenutnih statistik ────────────────────────
 
 async function countUserStats(uid) {
   const stats = { tweets: 0, likes: 0, comments: 0, friends: 0 };
 
-  // Tweeti uporabnika + skupno število likeov na njih
   const tweetsSnap = await getDocs(query(collection(db, "tweets"), where("uid", "==", uid)));
   tweetsSnap.forEach(d => {
     stats.tweets += 1;
     stats.likes += (d.data().likes || 0);
   });
 
-  // Komentarji uporabnika
   try {
     const commentsSnap = await getDocs(query(collection(db, "comments"), where("uid", "==", uid)));
     stats.comments = commentsSnap.size;
   } catch (err) {
-    console.error("Napaka pri branju komentarjev za dosežke:", err);
+    console.error("Napaka pri branju komentarjev:", err);
   }
 
-  // Prijatelji (sprejeti) — preverimo obe smeri povezave
   try {
     const sentSnap = await getDocs(query(
       collection(db, "friends"),
@@ -98,49 +101,61 @@ async function countUserStats(uid) {
     ));
     stats.friends = sentSnap.size + receivedSnap.size;
   } catch (err) {
-    console.error("Napaka pri branju prijateljev za dosežke:", err);
+    console.error("Napaka pri branju prijateljev:", err);
   }
 
   return stats;
 }
 
-// ── Združi trenutne statistike z trajno shranjenimi badge-i ──
+// ── Združi stats + shranjeni podatki ─────────────────
+// effectiveStats = max(trenutni, shranjeni maksimum)
+// Badges se samo dodajajo, nikoli ne odstranjujejo.
 
 async function resolveUnlockedBadges(uid) {
-  const [stats, storedUnlocked] = await Promise.all([
+  const [currentStats, { unlocked: storedUnlocked, maxStats: storedMax }] = await Promise.all([
     countUserStats(uid),
-    getUnlockedFromStorage(uid)
+    loadRewardDoc(uid)
   ]);
 
+  // Izračunaj efektivne staste — vedno vzamemo višjo vrednost
+  const effectiveStats = {};
+  for (const type of Object.keys(TYPE_LABELS)) {
+    effectiveStats[type] = Math.max(currentStats[type] || 0, storedMax[type] || 0);
+  }
+
+  // Posodobi shranjeni maksimum
+  const newMaxStats = { ...storedMax };
+  let maxChanged = false;
+  for (const type of Object.keys(TYPE_LABELS)) {
+    if ((currentStats[type] || 0) > (storedMax[type] || 0)) {
+      newMaxStats[type] = currentStats[type];
+      maxChanged = true;
+    }
+  }
+
+  // Odkleni nove badge-e
   const unlockedNow = new Set(storedUnlocked);
   let hasNewUnlock = false;
-
   BADGE_DEFS.forEach(b => {
-    if (!unlockedNow.has(b.id) && stats[b.type] >= b.threshold) {
+    if (!unlockedNow.has(b.id) && effectiveStats[b.type] >= b.threshold) {
       unlockedNow.add(b.id);
       hasNewUnlock = true;
     }
   });
 
-  if (hasNewUnlock) {
-    await saveUnlockedToStorage(uid, unlockedNow);
+  if (hasNewUnlock || maxChanged) {
+    await saveRewardDoc(uid, unlockedNow, newMaxStats);
   }
 
-  return { stats, unlockedSet: unlockedNow };
+  return { stats: effectiveStats, unlockedSet: unlockedNow };
 }
 
-function nextBadgeForType(type, currentCount, unlockedSet) {
+// ── Progress logika ───────────────────────────────────
+
+function nextBadgeForType(type, effectiveCount, unlockedSet) {
   const badgesOfType = BADGE_DEFS
     .filter(b => b.type === type)
     .sort((a, b) => a.threshold - b.threshold);
-
-  // "Trenutni efektivni count" za prikaz progresa upošteva tudi trajno
-  // odklenjene badge-e, tudi če je trenutno število nižje (npr. po brisanju).
-  const highestUnlockedThreshold = badgesOfType
-    .filter(b => unlockedSet.has(b.id))
-    .reduce((max, b) => Math.max(max, b.threshold), 0);
-
-  const effectiveCount = Math.max(currentCount, highestUnlockedThreshold);
 
   const next = badgesOfType.find(b => !unlockedSet.has(b.id));
   const prevThreshold = badgesOfType
@@ -150,11 +165,10 @@ function nextBadgeForType(type, currentCount, unlockedSet) {
   return { next, prevThreshold, effectiveCount };
 }
 
-// ── Render: hero z krožnim napredkom ──────────────────
+// ── Render: hero ──────────────────────────────────────
 
 function heroHtml(unlockedCount, totalCount) {
   const pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
-
   return `
     <div class="reward-hero">
       <div class="reward-hero-title">
@@ -162,7 +176,6 @@ function heroHtml(unlockedCount, totalCount) {
         <span>Dosežki</span>
       </div>
       <p class="reward-hero-sub">Sledi svojemu napredku na platformi</p>
-
       <div class="reward-ring-row">
         <div class="reward-ring" style="--pct:${pct}">
           <span class="reward-ring-label">${pct}%</span>
@@ -176,11 +189,11 @@ function heroHtml(unlockedCount, totalCount) {
   `;
 }
 
-// ── Render: progress bloki ─────────────────────────────
+// ── Render: progress bloki ────────────────────────────
 
-function progressBarHtml(type, count, unlockedSet) {
+function progressBarHtml(type, effectiveCount, unlockedSet) {
   const { label, icon } = TYPE_LABELS[type];
-  const { next, prevThreshold, effectiveCount } = nextBadgeForType(type, count, unlockedSet);
+  const { next, prevThreshold } = nextBadgeForType(type, effectiveCount, unlockedSet);
 
   if (!next) {
     return `
@@ -199,7 +212,7 @@ function progressBarHtml(type, count, unlockedSet) {
 
   const span = Math.max(next.threshold - prevThreshold, 1);
   const done = Math.min(Math.max(effectiveCount - prevThreshold, 0), span);
-  const pct = Math.round((done / span) * 100);
+  const pct  = Math.round((done / span) * 100);
 
   return `
     <div class="reward-progress-block">
@@ -215,7 +228,7 @@ function progressBarHtml(type, count, unlockedSet) {
   `;
 }
 
-// ── Render: badge kartice ──────────────────────────────
+// ── Render: badge kartice ─────────────────────────────
 
 function badgeCardHtml(badge, unlocked) {
   return `
@@ -232,7 +245,7 @@ function badgeCardHtml(badge, unlocked) {
   `;
 }
 
-// ── Glavni render ──────────────────────────────────────
+// ── Glavni render ─────────────────────────────────────
 
 async function renderRewardsPage() {
   const page = document.getElementById("rewardsPage");
@@ -269,10 +282,8 @@ async function renderRewardsPage() {
 
   page.innerHTML = `
     ${heroHtml(unlockedCount, BADGE_DEFS.length)}
-
     <h3>Napredek</h3>
     ${progressHtml}
-
     <h3>Vsi badge-i</h3>
     <div class="reward-badge-list">
       ${badgesHtml}
