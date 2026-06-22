@@ -2,7 +2,7 @@
 import "./warn.js";
 import "./system.js";
 import "./color.js";
-
+import { openRewards } from "./rewards.js";
 import "./auth.js"; // boots onAuthStateChanged
 
 import { login, register, logout } from "./auth.js";
@@ -15,7 +15,7 @@ import { handleAlertCommand, handleBackupCommand } from "./commands.js";
 import { backToFeed, goHome, showLogin, showRegister } from "./ui.js";
 
 // ── Window exports (used by HTML onclick="...") ───────
-
+window.openRewards = openRewards;
 window.login           = login;
 window.register        = register;
 window.logout          = logout;

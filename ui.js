@@ -2,6 +2,8 @@ export function hideAllPages() {
   document.querySelector(".feed").style.display = "none";
   document.getElementById("friendsPage").style.display = "none";
   document.getElementById("profilePage").style.display = "none";
+  const rewardsPage = document.getElementById("rewardsPage");
+  if (rewardsPage) rewardsPage.style.display = "none";
 }
 
 export function backToFeed() {
