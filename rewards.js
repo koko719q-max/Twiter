@@ -1,3 +1,4 @@
+import { openGamble } from "./gamble.js";
 import { db, auth } from "./config.js";
 import { hideAllPages } from "./ui.js";
 import { getCoins, addCoins } from "./coins.js";
@@ -11,7 +12,7 @@ import {
   setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// ── Badge definicije ──────────────────────────────────
+// ── BADGES ─────────────────────────────────────────────
 
 const BADGE_DEFS = [
   { id: "first_tweet", type: "tweets", threshold: 1, icon: "📝", title: "Prvi tweet", desc: "Objavi svoj prvi tweet", reward: 5 },
@@ -37,7 +38,7 @@ const TYPE_LABELS = {
   friends: { icon: "🤝", label: "Prijatelji" },
 };
 
-// ── Firestore ─────────────────────────────────────────
+// ── FIRESTORE ─────────────────────────────────────────
 
 async function loadRewardDoc(uid) {
   const ref = doc(db, "userRewards", uid);
@@ -64,7 +65,7 @@ async function saveRewardDoc(uid, unlocked, maxStats) {
   }, { merge: true });
 }
 
-// ── Stats ─────────────────────────────────────────────
+// ── STATS ─────────────────────────────────────────────
 
 async function countUserStats(uid) {
   const stats = { tweets: 0, likes: 0, comments: 0, friends: 0 };
@@ -95,7 +96,7 @@ async function countUserStats(uid) {
   return stats;
 }
 
-// ── Badge logic + COINS REWARD ───────────────────────
+// ── BADGE LOGIC ───────────────────────────────────────
 
 async function resolveUnlockedBadges(uid) {
   const [currentStats, rewardData, coins] = await Promise.all([
@@ -126,7 +127,6 @@ async function resolveUnlockedBadges(uid) {
 
   const unlocked = new Set(storedUnlocked);
   let newUnlock = false;
-
   let totalRewardCoins = 0;
 
   BADGE_DEFS.forEach(b => {
@@ -137,7 +137,6 @@ async function resolveUnlockedBadges(uid) {
     }
   });
 
-  // 💰 AUTO GIVE COINS FOR NEW BADGES
   if (totalRewardCoins > 0) {
     await addCoins(uid, totalRewardCoins);
   }
@@ -153,56 +152,42 @@ async function resolveUnlockedBadges(uid) {
   };
 }
 
-// ── Progress ──────────────────────────────────────────
-
-function nextBadgeForType(type, effectiveCount, unlockedSet) {
-  const badgesOfType = BADGE_DEFS
-    .filter(b => b.type === type)
-    .sort((a, b) => a.threshold - b.threshold);
-
-  const next = badgesOfType.find(b => !unlockedSet.has(b.id));
-
-  const prevThreshold = badgesOfType
-    .filter(b => unlockedSet.has(b.id))
-    .reduce((max, b) => Math.max(max, b.threshold), 0);
-
-  return { next, prevThreshold, effectiveCount };
-}
-
-// ── UI (UNCHANGED) ────────────────────────────────────
+// ── UI ───────────────────────────────────────────────
 
 function heroHtml(unlockedCount, totalCount, coins = 0) {
   const pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
 
   return `
     <div class="reward-hero">
+
       <div class="reward-hero-title">
-        <span class="reward-hero-icon">🎁</span>
-        <span>Dosežki</span>
+        <span>🎁 Dosežki</span>
       </div>
 
       <div style="display:flex; gap:10px; align-items:center;">
-        <p class="reward-hero-sub">Sledi svojemu napredku na platformi</p>
+        <p>Sledi svojemu napredku</p>
 
         <button id="storeBtn" class="reward-store-btn">
           🛒 Store
+        </button>
+
+        <!-- MORE COINS BUTTON -->
+        <button id="moreCoinsBtn" class="reward-store-btn">
+          🪙 more coins?
         </button>
       </div>
 
       <div class="reward-ring-row">
         <div class="reward-ring" style="--pct:${pct}">
-          <span class="reward-ring-label">${pct}%</span>
+          <span>${pct}%</span>
         </div>
 
-        <div class="reward-ring-text">
-          <strong>${unlockedCount} / ${totalCount} odklenjenih</strong>
-          <span>${unlockedCount === totalCount ? "Vsi badge-i pridobljeni 🎉" : "Nadaljuj z aktivnostjo"}</span>
+        <div>
+          <strong>${unlockedCount} / ${totalCount}</strong>
+          <div>${coins} coins</div>
         </div>
       </div>
 
-      <div style="margin-top:10px;">
-        💰 Coins: <b>${coins}</b>
-      </div>
     </div>
   `;
 }
@@ -216,43 +201,17 @@ function progressBarHtml(type, effectiveCount, unlockedSet) {
 
   const next = badgesOfType.find(b => !unlockedSet.has(b.id));
 
-  const prevThreshold = badgesOfType
-    .filter(b => unlockedSet.has(b.id))
-    .reduce((max, b) => Math.max(max, b.threshold), 0);
-
   if (!next) {
     return `
-      <div class="reward-progress-block complete">
-        <div class="reward-progress-head">
-          <span><span class="reward-type-icon">${icon}</span>${label}</span>
-          <span class="reward-progress-count">${effectiveCount}</span>
-        </div>
-        <div class="reward-progress-track">
-          <div class="reward-progress-fill" style="width:100%"></div>
-        </div>
-        <div class="reward-progress-done">✓ dokončano</div>
+      <div class="reward-progress-block">
+        ${icon} ${label} ✓
       </div>
     `;
   }
 
-  const span = Math.max(next.threshold - prevThreshold, 1);
-  const done = Math.min(Math.max(effectiveCount - prevThreshold, 0), span);
-  const pct = Math.round((done / span) * 100);
-
   return `
     <div class="reward-progress-block">
-      <div class="reward-progress-head">
-        <span><span class="reward-type-icon">${icon}</span>${label}</span>
-        <span class="reward-progress-count">${effectiveCount} / ${next.threshold}</span>
-      </div>
-
-      <div class="reward-progress-track">
-        <div class="reward-progress-fill" style="width:${pct}%"></div>
-      </div>
-
-      <div class="reward-progress-next">
-        Naslednji: ${next.icon} ${next.title}
-      </div>
+      ${icon} ${label}: ${effectiveCount} → ${next.threshold}
     </div>
   `;
 }
@@ -260,19 +219,12 @@ function progressBarHtml(type, effectiveCount, unlockedSet) {
 function badgeCardHtml(badge, unlocked) {
   return `
     <div class="reward-badge-card ${unlocked ? "unlocked" : "locked"}">
-      <div class="reward-badge-icon">${badge.icon}</div>
-      <div class="reward-badge-info">
-        <div class="reward-badge-title">${badge.title}</div>
-        <div class="reward-badge-desc">${badge.desc}</div>
-      </div>
-      <div class="reward-badge-status">
-        ${unlocked ? "✓" : "🔒"}
-      </div>
+      ${badge.icon} ${badge.title}
     </div>
   `;
 }
 
-// ── Render page ───────────────────────────────────────
+// ── RENDER ───────────────────────────────────────────
 
 async function renderRewardsPage() {
   const page = document.getElementById("rewardsPage");
@@ -301,9 +253,14 @@ async function renderRewardsPage() {
     <h3>Badges</h3>
     ${BADGE_DEFS.map(b => badgeCardHtml(b, unlockedSet.has(b.id))).join("")}
   `;
+
+  // ── BUTTON HANDLER ─────────────────────────────
+  document.getElementById("moreCoinsBtn")?.addEventListener("click", () => {
+    openGamble();
+  });
 }
 
-// ── Open page ─────────────────────────────────────────
+// ── OPEN PAGE ─────────────────────────────────────────
 
 export function openRewards() {
   hideAllPages();

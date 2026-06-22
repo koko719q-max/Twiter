@@ -1,4 +1,376 @@
 /* ─────────────────────────────
+   GAMBLE OVERLAY (ULTRA MODERN)
+───────────────────────────── */
+
+#gambleOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: radial-gradient(circle at top, rgba(255,200,0,0.15), transparent 40%),
+              radial-gradient(circle at bottom, rgba(0,200,255,0.12), transparent 45%),
+              rgba(0,0,0,0.85);
+
+  backdrop-filter: blur(14px);
+  z-index: 9999;
+  animation: fadeIn 0.25s ease;
+}
+
+/* ─────────────────────────────
+   MAIN CARD (GLASS EFFECT)
+───────────────────────────── */
+
+.gamble-card {
+  width: 390px;
+  padding: 20px;
+  border-radius: 20px;
+
+  background: rgba(20, 20, 30, 0.75);
+  border: 1px solid rgba(255,255,255,0.08);
+
+  box-shadow:
+    0 10px 40px rgba(0,0,0,0.6),
+    0 0 25px rgba(255, 200, 0, 0.08);
+
+  backdrop-filter: blur(18px);
+
+  color: white;
+  transform: scale(1);
+  transition: 0.25s ease;
+}
+
+.pop-in {
+  animation: popIn 0.3s ease;
+}
+
+/* ─────────────────────────────
+   HEADER
+───────────────────────────── */
+
+.gamble-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.gamble-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+#closeGamble {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 18px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+#closeGamble:hover {
+  color: white;
+  transform: scale(1.1);
+}
+
+/* ─────────────────────────────
+   COINS
+───────────────────────────── */
+
+.gamble-coins {
+  text-align: center;
+  font-size: 18px;
+  margin-bottom: 12px;
+  font-weight: bold;
+  color: #ffd36a;
+  text-shadow: 0 0 12px rgba(255,200,0,0.3);
+}
+
+/* ─────────────────────────────
+   TABS (MODERN PILLS)
+───────────────────────────── */
+
+.game-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.tab {
+  flex: 1;
+  padding: 7px 10px;
+  font-size: 12px;
+
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.75);
+
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.tab:hover {
+  transform: translateY(-2px);
+  background: rgba(255,255,255,0.08);
+  color: white;
+}
+
+.tab.active {
+  background: linear-gradient(135deg, #ffcc00, #ff6b00);
+  color: black;
+  font-weight: bold;
+  box-shadow: 0 0 15px rgba(255, 140, 0, 0.35);
+}
+
+/* ─────────────────────────────
+   GAME AREA
+───────────────────────────── */
+
+.game-area {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.game-visual {
+  font-size: 70px;
+  margin: 18px 0;
+  transition: 0.2s ease;
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+}
+
+/* ─────────────────────────────
+   BUTTON
+───────────────────────────── */
+
+.spin-btn {
+  width: 100%;
+  padding: 11px;
+
+  border-radius: 12px;
+  border: none;
+
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+
+  background: linear-gradient(135deg, #ffcc00, #ff6b00);
+  color: black;
+
+  box-shadow: 0 8px 20px rgba(255,120,0,0.25);
+
+  transition: 0.2s ease;
+}
+
+.spin-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 30px rgba(255,120,0,0.35);
+}
+
+/* ─────────────────────────────
+   MESSAGE
+───────────────────────────── */
+
+#gambleMsg {
+  margin-top: 12px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+/* ─────────────────────────────
+   ANIMATIONS
+───────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-6px); }
+  100% { transform: translateX(0); }
+}
+
+.shake {
+  animation: shake 0.35s ease;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg) scale(1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+
+.spin-animation {
+  animation: spin 0.6s ease;
+}
+
+/* ─────────────────────────────
+   WIN / LOSE EFFECTS
+───────────────────────────── */
+
+.win-glow {
+  color: #00ff99;
+  text-shadow:
+    0 0 10px rgba(0,255,150,0.6),
+    0 0 20px rgba(0,255,150,0.4);
+  transform: scale(1.25);
+  transition: 0.2s;
+}
+
+.lose-pop {
+  transform: scale(0.9);
+  opacity: 0.6;
+}
+
+/* ─────────────────────────────
+   MOBILE
+───────────────────────────── */
+
+@media (max-width: 420px) {
+  .gamble-card {
+    width: 92%;
+    padding: 16px;
+  }
+
+  .game-visual {
+    font-size: 58px;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.25s ease;
+}
+
+.fade-out {
+  animation: fadeOut 0.2s ease;
+}
+
+.pop-in {
+  animation: popIn 0.3s ease;
+}
+
+.spin-animation {
+  animation: spin 0.4s linear infinite;
+}
+
+.shake {
+  animation: shake 0.4s ease;
+}
+
+.glow-win {
+  text-shadow: 0 0 10px gold, 0 0 20px orange;
+  transform: scale(1.2);
+}
+
+.spin-btn {
+  transition: 0.2s;
+}
+
+.spin-btn:active {
+  transform: scale(0.95);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes popIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+  75% { transform: translateX(-6px); }
+  100% { transform: translateX(0); }
+}
+
+
+#gambleOverlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.gamble-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+}
+
+.gamble-card {
+  position: relative;
+  background: #1c1c1c;
+  color: white;
+  padding: 20px;
+  border-radius: 15px;
+  width: 320px;
+  text-align: center;
+  z-index: 2;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.gamble-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slot {
+  font-size: 60px;
+  margin: 20px 0;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.shake {
+  animation: shake 0.5s;
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-5px); }
+  100% { transform: translateX(0); }
+}
+
+/* ─────────────────────────────
    STORE MODAL BACKDROP
 ───────────────────────────── */
 
