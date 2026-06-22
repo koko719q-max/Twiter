@@ -3,27 +3,25 @@ import { getCoins, addCoins } from "./coins.js";
 
 let storeOpen = false;
 
-// ── ITEMS ───────────────────────────────
+// ── ITEMS ─────────────────────────────────────────────
+
 const STORE_ITEMS = [
-  // themes
-  { id: "blue_theme", name: "🔵 Blue Theme", price: 20, type: "theme" },
-  { id: "dark_theme", name: "🌑 Dark Theme", price: 30, type: "theme" },
-  { id: "neon_theme", name: "⚡ Neon Theme", price: 60, type: "theme" },
+  { id: "blue_theme", name: "🔵 Blue Theme", price: 20, type: "Theme" },
+  { id: "dark_theme", name: "🌑 Dark Theme", price: 30, type: "Theme" },
+  { id: "neon_theme", name: "⚡ Neon Theme", price: 60, type: "Theme" },
 
-  // badges
-  { id: "gold_badge", name: "🏆 Gold Badge", price: 50, type: "badge" },
-  { id: "diamond_badge", name: "💎 Diamond Badge", price: 120, type: "badge" },
+  { id: "gold_badge", name: "🏆 Gold Badge", price: 50, type: "Badge" },
+  { id: "diamond_badge", name: "💎 Diamond Badge", price: 120, type: "Badge" },
 
-  // fun items
-  { id: "name_color_red", name: "🔴 Red Name Color", price: 25, type: "cosmetic" },
-  { id: "name_color_green", name: "🟢 Green Name Color", price: 25, type: "cosmetic" },
+  { id: "name_color_red", name: "🔴 Red Name", price: 25, type: "Cosmetic" },
+  { id: "name_color_green", name: "🟢 Green Name", price: 25, type: "Cosmetic" },
 
-  // boosts
-  { id: "x2_coins_boost", name: "⚡ 2x Coins Boost (1h)", price: 80, type: "boost" },
-  { id: "xp_boost", name: "📈 XP Boost", price: 70, type: "boost" }
+  { id: "x2_coins_boost", name: "⚡ 2x Coins Boost", price: 80, type: "Boost" },
+  { id: "xp_boost", name: "📈 XP Boost", price: 70, type: "Boost" }
 ];
 
-// ── Create modal ─────────────────────────────
+// ── MODAL ─────────────────────────────────────────────
+
 function ensureStoreModal() {
   if (document.getElementById("storeModal")) return;
 
@@ -34,20 +32,24 @@ function ensureStoreModal() {
     <div class="store-backdrop"></div>
 
     <div class="store-box">
+
       <div class="store-header">
-        <h2>🛒 Store</h2>
-        <button id="closeStoreBtn">✖</button>
+        <div>
+          <h2>🛒 Store</h2>
+          <p class="store-subtitle">Upgrade your profile</p>
+        </div>
+        <button id="closeStoreBtn" class="store-close">✖</button>
       </div>
 
       <div class="store-content">
 
-        <div id="coinBalance">Coins: ...</div>
+        <div class="store-topbar">
+          <div id="coinBalance" class="store-coins">💰 Loading...</div>
+        </div>
 
-        <hr>
+        <div id="storeMsg" class="store-msg"></div>
 
-        <div id="storeItems"></div>
-
-        <p id="storeMsg"></p>
+        <div id="storeItems" class="store-grid"></div>
 
       </div>
     </div>
@@ -61,61 +63,108 @@ function ensureStoreModal() {
   renderStoreItems();
 }
 
-// ── Render items ─────────────────────────────
+// ── RENDER ITEMS ──────────────────────────────────────
+
 function renderStoreItems() {
   const container = document.getElementById("storeItems");
   if (!container) return;
 
   container.innerHTML = STORE_ITEMS.map(item => `
-    <button class="buyBtn" data-id="${item.id}" data-price="${item.price}">
-      ${item.name} - ${item.price} coins
-    </button>
+    <div class="store-card" data-id="${item.id}" data-price="${item.price}">
+
+      <div class="store-card-top">
+        <div class="store-name">${item.name}</div>
+        <div class="store-type">${item.type}</div>
+      </div>
+
+      <div class="store-card-bottom">
+        <div class="store-price">💰 ${item.price}</div>
+        <button class="buyBtn">Buy</button>
+      </div>
+
+    </div>
   `).join("");
 
-  container.querySelectorAll(".buyBtn").forEach(btn => {
-    btn.onclick = () => buyItem(btn.dataset.id, Number(btn.dataset.price));
+  container.querySelectorAll(".store-card").forEach(card => {
+    const btn = card.querySelector(".buyBtn");
+
+    btn.onclick = () => {
+      buyItem(card.dataset.id, Number(card.dataset.price));
+    };
   });
 }
 
-// ── Open store ───────────────────────────────
+// ── OPEN ──────────────────────────────────────────────
+
 export async function openStore() {
   ensureStoreModal();
-  document.getElementById("storeModal").style.display = "flex";
+
+  const modal = document.getElementById("storeModal");
+  modal.style.display = "flex";
+
   storeOpen = true;
 
   await refreshCoins();
+  await updateBuyButtons();
 }
 
-// ── Close store ──────────────────────────────
+// ── CLOSE ─────────────────────────────────────────────
+
 export function closeStore() {
   const modal = document.getElementById("storeModal");
   if (modal) modal.style.display = "none";
   storeOpen = false;
 }
 
-// ── Coins display ─────────────────────────────
+// ── COINS ─────────────────────────────────────────────
+
 async function refreshCoins() {
   const user = auth.currentUser;
   if (!user) return;
 
   const coins = await getCoins(user.uid);
-  document.getElementById("coinBalance").textContent = `Coins: ${coins}`;
+  document.getElementById("coinBalance").textContent = `💰 ${coins} Coins`;
 }
 
-// ── Buy logic ────────────────────────────────
+// ── BUTTON STATE ──────────────────────────────────────
+
+async function updateBuyButtons() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const coins = await getCoins(user.uid);
+
+  document.querySelectorAll(".store-card").forEach(card => {
+    const price = Number(card.dataset.price);
+    const btn = card.querySelector(".buyBtn");
+
+    if (coins < price) {
+      btn.disabled = true;
+      btn.textContent = "Locked";
+      card.classList.add("disabled");
+    } else {
+      btn.disabled = false;
+      btn.textContent = "Buy";
+      card.classList.remove("disabled");
+    }
+  });
+}
+
+// ── BUY LOGIC ────────────────────────────────────────
+
 async function buyItem(itemId, price) {
   const user = auth.currentUser;
   const msg = document.getElementById("storeMsg");
 
   if (!user) {
-    msg.textContent = "Login first!";
+    msg.textContent = "❌ Login first";
     return;
   }
 
   const coins = await getCoins(user.uid);
 
   if (coins < price) {
-    msg.textContent = "❌ Not enough coins!";
+    msg.textContent = "❌ Not enough coins";
     return;
   }
 
@@ -123,12 +172,20 @@ async function buyItem(itemId, price) {
 
   const item = STORE_ITEMS.find(i => i.id === itemId);
 
-  msg.textContent = `✅ Purchased: ${item?.name || itemId}`;
+  msg.textContent = `✅ Bought: ${item?.name}`;
+
+  msg.style.color = "#00ff88";
 
   await refreshCoins();
+  await updateBuyButtons();
+
+  setTimeout(() => {
+    msg.textContent = "";
+  }, 2000);
 }
 
-// ── Init button listener ─────────────────────
+// ── INIT ─────────────────────────────────────────────
+
 export function initStore() {
   document.addEventListener("click", (e) => {
     if (e.target && e.target.id === "storeBtn") {

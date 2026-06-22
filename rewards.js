@@ -14,20 +14,20 @@ import {
 // ── Badge definicije ──────────────────────────────────
 
 const BADGE_DEFS = [
-  { id: "first_tweet", type: "tweets", threshold: 1, icon: "📝", title: "Prvi tweet", desc: "Objavi svoj prvi tweet" },
-  { id: "tweets_10", type: "tweets", threshold: 10, icon: "🗞️", title: "Pisatelj", desc: "Objavi 10 tweetov" },
-  { id: "tweets_50", type: "tweets", threshold: 50, icon: "📚", title: "Kroničar", desc: "Objavi 50 tweetov" },
-  { id: "tweets_100", type: "tweets", threshold: 100, icon: "🏛️", title: "Legenda feeda", desc: "Objavi 100 tweetov" },
+  { id: "first_tweet", type: "tweets", threshold: 1, icon: "📝", title: "Prvi tweet", desc: "Objavi svoj prvi tweet", reward: 5 },
+  { id: "tweets_10", type: "tweets", threshold: 10, icon: "🗞️", title: "Pisatelj", desc: "Objavi 10 tweetov", reward: 15 },
+  { id: "tweets_50", type: "tweets", threshold: 50, icon: "📚", title: "Kroničar", desc: "Objavi 50 tweetov", reward: 50 },
+  { id: "tweets_100", type: "tweets", threshold: 100, icon: "🏛️", title: "Legenda feeda", desc: "Objavi 100 tweetov", reward: 120 },
 
-  { id: "likes_10", type: "likes", threshold: 10, icon: "❤️", title: "Priljubljen", desc: "Zberi 10 likeov skupno" },
-  { id: "likes_100", type: "likes", threshold: 100, icon: "💖", title: "100 likeov", desc: "Zberi 100 likeov skupno" },
-  { id: "likes_500", type: "likes", threshold: 500, icon: "🔥", title: "Viralno", desc: "Zberi 500 likeov skupno" },
+  { id: "likes_10", type: "likes", threshold: 10, icon: "❤️", title: "Priljubljen", desc: "Zberi 10 likeov skupno", reward: 10 },
+  { id: "likes_100", type: "likes", threshold: 100, icon: "💖", title: "100 likeov", desc: "Zberi 100 likeov skupno", reward: 60 },
+  { id: "likes_500", type: "likes", threshold: 500, icon: "🔥", title: "Viralno", desc: "Zberi 500 likeov skupno", reward: 200 },
 
-  { id: "comments_5", type: "comments", threshold: 5, icon: "💬", title: "Sogovornik", desc: "Napiši 5 komentarjev" },
-  { id: "comments_25", type: "comments", threshold: 25, icon: "🗣️", title: "Razpravljavec", desc: "Napiši 25 komentarjev" },
+  { id: "comments_5", type: "comments", threshold: 5, icon: "💬", title: "Sogovornik", desc: "Napiši 5 komentarjev", reward: 10 },
+  { id: "comments_25", type: "comments", threshold: 25, icon: "🗣️", title: "Razpravljavec", desc: "Napiši 25 komentarjev", reward: 40 },
 
-  { id: "friends_1", type: "friends", threshold: 1, icon: "🤝", title: "Prvi prijatelj", desc: "Pridobi 1 prijatelja" },
-  { id: "friends_10", type: "friends", threshold: 10, icon: "👥", title: "Družaben", desc: "Pridobi 10 prijateljev" },
+  { id: "friends_1", type: "friends", threshold: 1, icon: "🤝", title: "Prvi prijatelj", desc: "Pridobi 1 prijatelja", reward: 20 },
+  { id: "friends_10", type: "friends", threshold: 10, icon: "👥", title: "Družaben", desc: "Pridobi 10 prijateljev", reward: 100 },
 ];
 
 const TYPE_LABELS = {
@@ -95,7 +95,7 @@ async function countUserStats(uid) {
   return stats;
 }
 
-// ── Badge logic ───────────────────────────────────────
+// ── Badge logic + COINS REWARD ───────────────────────
 
 async function resolveUnlockedBadges(uid) {
   const [currentStats, rewardData, coins] = await Promise.all([
@@ -127,21 +127,29 @@ async function resolveUnlockedBadges(uid) {
   const unlocked = new Set(storedUnlocked);
   let newUnlock = false;
 
+  let totalRewardCoins = 0;
+
   BADGE_DEFS.forEach(b => {
     if (!unlocked.has(b.id) && effectiveStats[b.type] >= b.threshold) {
       unlocked.add(b.id);
       newUnlock = true;
+      totalRewardCoins += b.reward || 0;
     }
   });
 
-  if (newUnlock || changed) {
+  // 💰 AUTO GIVE COINS FOR NEW BADGES
+  if (totalRewardCoins > 0) {
+    await addCoins(uid, totalRewardCoins);
+  }
+
+  if (newUnlock || changed || totalRewardCoins > 0) {
     await saveRewardDoc(uid, unlocked, newMaxStats);
   }
 
   return {
     stats: effectiveStats,
     unlockedSet: unlocked,
-    coins
+    coins: coins + totalRewardCoins
   };
 }
 
@@ -161,7 +169,7 @@ function nextBadgeForType(type, effectiveCount, unlockedSet) {
   return { next, prevThreshold, effectiveCount };
 }
 
-// ── UI (NE SPREMINJAMO) ───────────────────────────────
+// ── UI (UNCHANGED) ────────────────────────────────────
 
 function heroHtml(unlockedCount, totalCount, coins = 0) {
   const pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
@@ -302,4 +310,3 @@ export function openRewards() {
   document.getElementById("rewardsPage").style.display = "block";
   renderRewardsPage();
 }
-
