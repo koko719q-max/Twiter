@@ -2,9 +2,15 @@
 import { initUI } from "./ui.js";
 
 initUI();
+
 document.getElementById("rulesBtn")?.addEventListener("click", () => {
   window.location.href = "rules.html";
 });
+
+function openStaff(){
+  window.location.href = "staff.html";
+}
+
 import "./warn.js";
 import "./system.js";
 import "./color.js";
@@ -55,3 +61,6 @@ window.backToFeed      = backToFeed;
 window.goHome          = goHome;
 window.showLogin       = showLogin;
 window.showRegister    = showRegister;
+
+// ── Staff page navigation ─────────────────────────────
+window.openStaff = openStaff;

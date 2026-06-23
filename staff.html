@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<title>Staff Apply</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body{
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#0f0f0f;
+  color:white;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+
+.container{
+  width:90%;
+  max-width:400px;
+  background:#1a1a1a;
+  padding:20px;
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(0,0,0,0.5);
+}
+
+h1{
+  text-align:center;
+  margin-bottom:20px;
+}
+
+input, textarea{
+  width:100%;
+  padding:10px;
+  margin-bottom:10px;
+  border:none;
+  border-radius:8px;
+  outline:none;
+  background:#2a2a2a;
+  color:white;
+}
+
+textarea{
+  resize:none;
+  height:120px;
+}
+
+button{
+  width:100%;
+  padding:10px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  background:#4a4aff;
+  color:white;
+  font-size:16px;
+}
+
+button:hover{
+  background:#3a3ad6;
+}
+
+.back{
+  margin-top:10px;
+  background:#333;
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Staff Application 🛡️</h1>
+
+  <input id="name" placeholder="Username">
+  <input id="email" placeholder="Email">
+  <textarea id="reason" placeholder="Why do you want to be staff?"></textarea>
+
+  <button onclick="submitApp()">Submit</button>
+  <button class="back" onclick="goBack()">Back</button>
+</div>
+
+<script>
+function submitApp(){
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const reason = document.getElementById("reason").value;
+
+  if(!name || !email || !reason){
+    alert("Fill all fields!");
+    return;
+  }
+
+  alert("Application sent!");
+  console.log({name, email, reason});
+
+  document.getElementById("name").value = "";
+  document.getElementById("email").value = "";
+  document.getElementById("reason").value = "";
+}
+
+function goBack(){
+  window.location.href = "index.html";
+}
+</script>
+
+</body>
+</html>
