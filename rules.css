@@ -1,0 +1,157 @@
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background: radial-gradient(circle at top, #1b2a4a, #0b1220);
+  overflow: hidden;
+}
+
+/* subtle animated glow background */
+body::before {
+  content: "";
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: #4f7cff;
+  filter: blur(120px);
+  opacity: 0.25;
+  border-radius: 50%;
+  animation: floatGlow 6s ease-in-out infinite alternate;
+}
+
+@keyframes floatGlow {
+  from { transform: translate(-100px, -80px); }
+  to { transform: translate(100px, 80px); }
+}
+
+/* MAIN WINDOW */
+.window {
+  width: 720px;
+  max-width: 92vw;
+
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+
+  overflow: hidden;
+
+  transform: translateY(20px);
+  opacity: 0;
+  animation: popIn 0.6s ease forwards;
+}
+
+@keyframes popIn {
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* TITLEBAR */
+.titlebar {
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 18px;
+
+  font-weight: 600;
+  color: white;
+
+  background: linear-gradient(90deg, #4f7cff, #6a5cff);
+}
+
+/* CONTENT */
+.content {
+  padding: 18px;
+}
+
+/* TEXT BOX */
+.box {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
+  border-radius: 12px;
+
+  padding: 14px;
+
+  height: 320px;
+  overflow-y: auto;
+
+  white-space: pre-wrap;
+  font-size: 14px;
+  line-height: 1.6;
+
+  color: #eaeaea;
+}
+
+/* BUTTON ROW */
+.buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+/* BUTTONS */
+button {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+
+  transition: all 0.2s ease;
+
+  background: rgba(255,255,255,0.1);
+  color: white;
+
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+button:hover {
+  transform: translateY(-2px);
+  background: rgba(255,255,255,0.18);
+}
+
+button:active {
+  transform: translateY(0px);
+}
+
+/* STATUS */
+.status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  min-height: 14px;
+}
+
+/* blink cursor style */
+.blink {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* scrollbar modern */
+.box::-webkit-scrollbar {
+  width: 8px;
+}
+
+.box::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+}
+
+.box::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.35);
+}

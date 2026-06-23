@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Access Denied</title>
+
+<style>
+
+body {
+  margin: 0;
+  height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+
+  background:
+    radial-gradient(circle at top, #ff3b3b33, transparent 40%),
+    linear-gradient(135deg,#090d18,#1b2238);
+
+  overflow: hidden;
+}
+
+
+/* glow */
+body::before {
+  content:"";
+  position:absolute;
+
+  width:500px;
+  height:500px;
+
+  background:#ff0000;
+  opacity:0.12;
+
+  filter:blur(120px);
+  border-radius:50%;
+
+  animation:float 6s infinite alternate;
+}
+
+
+@keyframes float {
+  from {
+    transform:translate(-100px,-50px);
+  }
+
+  to {
+    transform:translate(100px,50px);
+  }
+}
+
+
+
+/* CARD */
+
+.window {
+
+  width:520px;
+  max-width:90vw;
+
+  text-align:center;
+
+
+  background:rgba(255,255,255,0.08);
+
+  backdrop-filter:blur(18px);
+
+
+  border:1px solid rgba(255,255,255,0.15);
+
+  border-radius:20px;
+
+
+  box-shadow:
+  0 30px 80px rgba(0,0,0,.6);
+
+
+
+  overflow:hidden;
+
+
+  animation:open .6s ease;
+}
+
+
+
+@keyframes open {
+
+from {
+ transform:scale(.85);
+ opacity:0;
+}
+
+
+to {
+ transform:scale(1);
+ opacity:1;
+}
+
+}
+
+
+
+
+/* HEADER */
+
+.titlebar {
+
+
+padding:16px;
+
+
+font-weight:700;
+
+
+color:white;
+
+
+background:
+linear-gradient(90deg,#dc2626,#7f1d1d);
+
+
+font-size:15px;
+
+
+letter-spacing:1px;
+
+
+}
+
+
+
+/* ICON */
+
+.icon {
+
+font-size:80px;
+
+margin-top:25px;
+
+
+animation:pulse 1.5s infinite;
+
+}
+
+
+
+@keyframes pulse {
+
+
+50% {
+
+transform:scale(1.15);
+
+}
+
+
+}
+
+
+
+
+.text {
+
+
+margin-top:15px;
+
+
+color:white;
+
+
+font-size:20px;
+
+
+font-weight:700;
+
+
+}
+
+
+
+.subtext {
+
+
+margin-top:10px;
+
+
+padding:0 30px;
+
+
+color:rgba(255,255,255,.65);
+
+
+font-size:14px;
+
+
+line-height:1.5;
+
+
+}
+
+
+
+.blink {
+
+
+margin-top:20px;
+
+
+color:#ff6b6b;
+
+
+font-weight:600;
+
+
+animation:blink 1s infinite;
+
+
+}
+
+
+@keyframes blink {
+
+
+50% {
+
+opacity:.2;
+
+}
+
+
+}
+
+
+
+/* BUTTON */
+
+
+button {
+
+
+margin:25px;
+
+
+padding:12px 30px;
+
+
+border-radius:12px;
+
+
+border:none;
+
+
+cursor:pointer;
+
+
+font-weight:700;
+
+
+color:white;
+
+
+background:
+
+linear-gradient(135deg,#ef4444,#991b1b);
+
+
+
+transition:.25s;
+
+
+box-shadow:
+0 10px 25px rgba(239,68,68,.3);
+
+
+}
+
+
+
+button:hover {
+
+
+transform:translateY(-3px);
+
+
+filter:brightness(1.15);
+
+
+}
+
+
+
+button:active {
+
+
+transform:scale(.95);
+
+
+}
+
+
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="window">
+
+
+<div class="titlebar">
+
+⛔ ACCESS DENIED
+
+</div>
+
+
+
+<div class="icon">
+
+🚫
+
+</div>
+
+
+
+<div class="text">
+
+You did NOT accept the Terms of Service
+
+</div>
+
+
+
+<div class="subtext">
+
+You cannot use this application without agreeing to the rules.
+
+</div>
+
+
+
+<div class="subtext blink">
+
+Redirect required...
+
+</div>
+
+
+
+<button onclick="goBack()">
+
+↩ Go Back
+
+</button>
+
+
+
+</div>
+
+
+
+<script>
+
+
+function goBack(){
+
+window.location.href="rules.html";
+
+}
+
+
+// auto return
+
+setTimeout(()=>{
+
+window.location.href="rules.html";
+
+},5000);
+
+
+
+</script>
+
+
+</body>
+</html>

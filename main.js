@@ -2,6 +2,9 @@
 import { initUI } from "./ui.js";
 
 initUI();
+document.getElementById("rulesBtn")?.addEventListener("click", () => {
+  window.location.href = "rules.html";
+});
 import "./warn.js";
 import "./system.js";
 import "./color.js";
