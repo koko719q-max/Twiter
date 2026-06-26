@@ -16,21 +16,20 @@ function applyColors(text) {
     gray: "#8e8e93"
   };
 
-  // ─────────────────────────────
-  // BASIC COLORS: <red> text
-  // ─────────────────────────────
-  let result = text.replace(/<(\w+)>\s?([^<]+)/g, (match, color, content) => {
-    const c = colors[color.toLowerCase()];
-    if (!c) return content;
+  let result = text;
 
-    return `<span style="color:${c}; font-weight:500;">${content}</span>`;
+  // BASIC COLORS
+  Object.entries(colors).forEach(([name, color]) => {
+    const regex = new RegExp(`<${name}>\\s?([^<]+)`, "gi");
+
+    result = result.replace(regex, (_, content) => {
+      return `<span style="color:${color};font-weight:500;">${content}</span>`;
+    });
   });
 
-  // ─────────────────────────────
-  // 🌈 RAINBOW
-  // ─────────────────────────────
-  result = result.replace(/<rainbow>\s?([\s\S]+)/g, (match, content) => {
-    const rainbowColors = [
+  // RAINBOW
+  result = result.replace(/<rainbow>\s?([^<]+)/gi, (_, content) => {
+    const rainbow = [
       "#ff3b30",
       "#ff9500",
       "#ffcc00",
@@ -40,18 +39,16 @@ function applyColors(text) {
     ];
 
     return [...content]
-      .map((letter, i) => {
-        const color = rainbowColors[i % rainbowColors.length];
-        return `<span style="color:${color}; font-weight:600;">${letter}</span>`;
+      .map((char, i) => {
+        if (char === " ") return " ";
+        return `<span style="color:${rainbow[i % rainbow.length]};font-weight:600;">${char}</span>`;
       })
       .join("");
   });
 
-  // ─────────────────────────────
-  // ⚡ NEON EFFECT: <neon> text
-  // ─────────────────────────────
-  result = result.replace(/<neon>\s?([\s\S]+)/g, (match, content) => {
-    const neonColors = [
+  // NEON
+  result = result.replace(/<neon>\s?([^<]+)/gi, (_, content) => {
+    const neon = [
       "#ff3b30",
       "#ff9500",
       "#ffcc00",
@@ -61,14 +58,19 @@ function applyColors(text) {
     ];
 
     return [...content]
-      .map((letter, i) => {
-        const color = neonColors[i % neonColors.length];
+      .map((char, i) => {
+        if (char === " ") return " ";
+
+        const color = neon[i % neon.length];
 
         return `<span style="
           color:${color};
           font-weight:600;
-          text-shadow: 0 0 5px ${color}, 0 0 10px ${color}, 0 0 20px ${color};
-        ">${letter}</span>`;
+          text-shadow:
+            0 0 5px ${color},
+            0 0 10px ${color},
+            0 0 20px ${color};
+        ">${char}</span>`;
       })
       .join("");
   });
@@ -76,6 +78,4 @@ function applyColors(text) {
   return result;
 }
 
-// export
 window.applyColors = applyColors;
-
