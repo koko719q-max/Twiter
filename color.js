@@ -1,3 +1,12 @@
+export function parseColoredName(text = "") {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/&lt;red&gt;(.*?)&lt;\/red&gt;/g, '<span style="color:red">$1</span>')
+    .replace(/&lt;blue&gt;(.*?)&lt;\/blue&gt;/g, '<span style="color:dodgerblue">$1</span>')
+    .replace(/&lt;green&gt;(.*?)&lt;\/green&gt;/g, '<span style="color:limegreen">$1</span>');
+}
 // ─────────────────────────────────────────────
 // COLOR SYSTEM (OWNER ONLY)
 // ─────────────────────────────────────────────

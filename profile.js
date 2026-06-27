@@ -21,11 +21,24 @@ function resizeImage(file, maxSize = 200, quality = 0.7) {
       img.onerror = reject;
       img.onload = () => {
         let w = img.width, h = img.height;
-        if (w > h) { if (w > maxSize) { h = Math.round(h * (maxSize / w)); w = maxSize; } }
-        else        { if (h > maxSize) { w = Math.round(w * (maxSize / h)); h = maxSize; } }
+
+        if (w > h) {
+          if (w > maxSize) {
+            h = Math.round(h * (maxSize / w));
+            w = maxSize;
+          }
+        } else {
+          if (h > maxSize) {
+            w = Math.round(w * (maxSize / h));
+            h = maxSize;
+          }
+        }
+
         const canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
+        canvas.width = w;
+        canvas.height = h;
         canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
       img.src = e.target.result;
@@ -34,26 +47,54 @@ function resizeImage(file, maxSize = 200, quality = 0.7) {
   });
 }
 
+// ── COLOR PARSER (NEW) ────────────────────────────────
+
+function parseColoredName(text = "") {
+  // varno: samo dovoljeni tagi
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    // nato vrnemo dovoljene tag-e nazaj
+    .replace(/&lt;red&gt;(.*?)&lt;\/red&gt;/g, '<span style="color:red">$1</span>')
+    .replace(/&lt;blue&gt;(.*?)&lt;\/blue&gt;/g, '<span style="color:blue">$1</span>')
+    .replace(/&lt;green&gt;(.*?)&lt;\/green&gt;/g, '<span style="color:green">$1</span>');
+}
+
 // ── Upload profile pic ────────────────────────────────
 
 export async function uploadProfilePic() {
   const profilePicInput = document.getElementById("profilePicInput");
   const file = profilePicInput.files[0];
-  if (!file) { alert("Najprej izberi sliko"); return; }
+  if (!file) {
+    alert("Najprej izberi sliko");
+    return;
+  }
 
   const user = auth.currentUser;
+
   try {
     const dataUrl = await resizeImage(file, 200, 0.7);
+
     const q = query(collection(db, "users"), where("uid", "==", user.uid));
     const snap = await getDocs(q);
-    if (snap.empty) { alert("Uporabniškega profila ni mogoče najti"); return; }
 
-    await updateDoc(doc(db, "users", snap.docs[0].id), { photoURL: dataUrl });
+    if (snap.empty) {
+      alert("Uporabniškega profila ni mogoče najti");
+      return;
+    }
+
+    await updateDoc(doc(db, "users", snap.docs[0].id), {
+      photoURL: dataUrl
+    });
+
     await loadUsers();
 
     const profileAvatar = document.getElementById("profileAvatar");
-    const profileName   = document.getElementById("profileName");
+    const profileName = document.getElementById("profileName");
+
     setAvatarEl(profileAvatar, getUserByUid(user.uid), profileName.innerText);
+
     profilePicInput.value = "";
     alert("Profilna slika posodobljena");
   } catch (err) {
@@ -66,22 +107,44 @@ export async function uploadProfilePic() {
 
 export async function updateUsername() {
   const usernameInput = document.getElementById("usernameInput");
-  const newName = usernameInput.value.trim();
-  if (!newName) { alert("Vnesi novo uporabniško ime"); return; }
+  const newName = usernameInput.value;
+
+  if (!newName || !newName.trim()) {
+    alert("Vnesi novo uporabniško ime");
+    return;
+  }
 
   const user = auth.currentUser;
+
   try {
     const q = query(collection(db, "users"), where("uid", "==", user.uid));
     const snap = await getDocs(q);
-    if (snap.empty) { alert("Uporabniškega profila ni mogoče najti"); return; }
 
-    await updateDoc(doc(db, "users", snap.docs[0].id), { username: newName });
+    if (snap.empty) {
+      alert("Uporabniškega profila ni mogoče najti");
+      return;
+    }
+
+    await updateDoc(doc(db, "users", snap.docs[0].id), {
+      username: newName
+    });
+
     await loadUsers();
 
     const updatedUser = getUserByUid(user.uid);
-    document.getElementById("profileName").innerText = updatedUser?.username || newName;
-    document.getElementById("profileBadge").innerHTML = ownerBadgeHtml(updatedUser);
-    setAvatarEl(document.getElementById("profileAvatar"), updatedUser, newName);
+
+    document.getElementById("profileName").innerHTML =
+      parseColoredName(updatedUser?.username || newName);
+
+    document.getElementById("profileBadge").innerHTML =
+      ownerBadgeHtml(updatedUser);
+
+    setAvatarEl(
+      document.getElementById("profileAvatar"),
+      updatedUser,
+      newName
+    );
+
     usernameInput.value = "";
     alert("Uporabniško ime posodobljeno. Opomba: že objavljeni tweeti ohranijo staro ime.");
   } catch (err) {
@@ -97,16 +160,31 @@ export async function openProfile(uid) {
   document.getElementById("profilePage").style.display = "block";
 
   const user = getUserByUid(uid);
-  document.getElementById("profileName").innerText = user?.username || "Profile";
-  document.getElementById("profileBadge").innerHTML = ownerBadgeHtml(user);
-  setAvatarEl(document.getElementById("profileAvatar"), user, user?.username);
 
-  const isOwnProfile = auth.currentUser && auth.currentUser.uid === uid;
-  document.getElementById("photoEditWrap").classList.toggle("hidden", !isOwnProfile);
-  document.getElementById("logoutBtn").classList.toggle("hidden", !isOwnProfile);
+  document.getElementById("profileName").innerHTML =
+    parseColoredName(user?.username || "Profile");
+
+  document.getElementById("profileBadge").innerHTML =
+    ownerBadgeHtml(user);
+
+  setAvatarEl(
+    document.getElementById("profileAvatar"),
+    user,
+    user?.username
+  );
+
+  const isOwnProfile =
+    auth.currentUser && auth.currentUser.uid === uid;
+
+  document.getElementById("photoEditWrap")
+    .classList.toggle("hidden", !isOwnProfile);
+
+  document.getElementById("logoutBtn")
+    .classList.toggle("hidden", !isOwnProfile);
 
   if (isOwnProfile) {
-    document.getElementById("usernameInput").value = user?.username || "";
+    document.getElementById("usernameInput").value =
+      user?.username || "";
   }
 }
 
