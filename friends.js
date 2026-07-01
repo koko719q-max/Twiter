@@ -85,10 +85,13 @@ export function renderMyFriends() {
     const otherUid = f.from === myUid ? f.to : f.from;
     const u = getUserByUid(otherUid);
     return `
-      <div class="friend-item" style="cursor:pointer;" onclick="openProfile('${otherUid}')">
-        ${avatarHtml(u, u?.username, "avatar-small")}
-        <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
-        <span class="friend-status">✓ Prijatelja</span>
+      <div class="friend-item">
+        <div onclick="openProfile('${otherUid}')" style="cursor:pointer; flex:1;">
+          ${avatarHtml(u, u?.username, "avatar-small")}
+          <b>${u?.username || "Neznan uporabnik"}</b> ${ownerBadgeHtml(u)}
+          <span class="friend-status">✓ Prijatelja</span>
+        </div>
+        <button class="btn-auto" onclick="openChat('${otherUid}')" title="Pošlji sporočilo">💬</button>
       </div>
     `;
   }).join("");

@@ -1,12 +1,3 @@
-export function parseColoredName(text = "") {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/&lt;red&gt;(.*?)&lt;\/red&gt;/g, '<span style="color:red">$1</span>')
-    .replace(/&lt;blue&gt;(.*?)&lt;\/blue&gt;/g, '<span style="color:dodgerblue">$1</span>')
-    .replace(/&lt;green&gt;(.*?)&lt;\/green&gt;/g, '<span style="color:limegreen">$1</span>');
-}
 // ─────────────────────────────────────────────
 // COLOR SYSTEM (OWNER ONLY)
 // ─────────────────────────────────────────────
@@ -25,20 +16,21 @@ function applyColors(text) {
     gray: "#8e8e93"
   };
 
-  let result = text;
+  // ─────────────────────────────
+  // BASIC COLORS: <red> text
+  // ─────────────────────────────
+  let result = text.replace(/<(\w+)>\s?([^<]+)/g, (match, color, content) => {
+    const c = colors[color.toLowerCase()];
+    if (!c) return content;
 
-  // BASIC COLORS
-  Object.entries(colors).forEach(([name, color]) => {
-    const regex = new RegExp(`<${name}>\\s?([^<]+)`, "gi");
-
-    result = result.replace(regex, (_, content) => {
-      return `<span style="color:${color};font-weight:500;">${content}</span>`;
-    });
+    return `<span style="color:${c}; font-weight:500;">${content}</span>`;
   });
 
-  // RAINBOW
-  result = result.replace(/<rainbow>\s?([^<]+)/gi, (_, content) => {
-    const rainbow = [
+  // ─────────────────────────────
+  // 🌈 RAINBOW
+  // ─────────────────────────────
+  result = result.replace(/<rainbow>\s?([\s\S]+)/g, (match, content) => {
+    const rainbowColors = [
       "#ff3b30",
       "#ff9500",
       "#ffcc00",
@@ -48,16 +40,18 @@ function applyColors(text) {
     ];
 
     return [...content]
-      .map((char, i) => {
-        if (char === " ") return " ";
-        return `<span style="color:${rainbow[i % rainbow.length]};font-weight:600;">${char}</span>`;
+      .map((letter, i) => {
+        const color = rainbowColors[i % rainbowColors.length];
+        return `<span style="color:${color}; font-weight:600;">${letter}</span>`;
       })
       .join("");
   });
 
-  // NEON
-  result = result.replace(/<neon>\s?([^<]+)/gi, (_, content) => {
-    const neon = [
+  // ─────────────────────────────
+  // ⚡ NEON EFFECT: <neon> text
+  // ─────────────────────────────
+  result = result.replace(/<neon>\s?([\s\S]+)/g, (match, content) => {
+    const neonColors = [
       "#ff3b30",
       "#ff9500",
       "#ffcc00",
@@ -67,19 +61,14 @@ function applyColors(text) {
     ];
 
     return [...content]
-      .map((char, i) => {
-        if (char === " ") return " ";
-
-        const color = neon[i % neon.length];
+      .map((letter, i) => {
+        const color = neonColors[i % neonColors.length];
 
         return `<span style="
           color:${color};
           font-weight:600;
-          text-shadow:
-            0 0 5px ${color},
-            0 0 10px ${color},
-            0 0 20px ${color};
-        ">${char}</span>`;
+          text-shadow: 0 0 5px ${color}, 0 0 10px ${color}, 0 0 20px ${color};
+        ">${letter}</span>`;
       })
       .join("");
   });
@@ -87,4 +76,6 @@ function applyColors(text) {
   return result;
 }
 
+// export
 window.applyColors = applyColors;
+

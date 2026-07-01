@@ -25,6 +25,14 @@ import { openProfile, openMyProfile, closeProfile } from "./profile.js";
 import { uploadProfilePic, updateUsername } from "./profile.js";
 import { handleAlertCommand, handleBackupCommand } from "./commands.js";
 import { backToFeed, goHome, showLogin, showRegister } from "./ui.js";
+import { 
+  openChat, 
+  closeChat, 
+  sendMessage, 
+  deleteMessage,
+  openMessages, 
+  backToFeedFromChat 
+} from "./messages.js";
 
 // ── Window exports (used by HTML onclick="...") ───────
 window.openRewards = openRewards;
@@ -61,6 +69,12 @@ window.backToFeed      = backToFeed;
 window.goHome          = goHome;
 window.showLogin       = showLogin;
 window.showRegister    = showRegister;
+window.openChat        = openChat;
+window.closeChat       = closeChat;
+window.sendMessage     = sendMessage;
+window.deleteMessage   = deleteMessage;
+window.openMessages    = openMessages;
+window.backToFeedFromChat = backToFeedFromChat;
 
 // ── Staff page navigation ─────────────────────────────
 window.openStaff = openStaff;

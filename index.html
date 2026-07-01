@@ -5,14 +5,7 @@
 <title>X Clone</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="stylesheet" href="style.css">
-
-<!-- ✔️ DODANO: varni color tag styling -->
-<style>
-  .color-red { color: red; }
-  .color-blue { color: dodgerblue; }
-  .color-green { color: limegreen; }
-</style>
-
+<link rel="stylesheet" href="messages.css">
 </head>
 
 <body>
@@ -45,45 +38,45 @@
 <div class="layout">
 
   <div class="feed">
-
+    <!-- Tweet compose box -->
     <div class="tweet-compose">
-      <textarea id="tweetInput" placeholder="povej kaj "></textarea>
+      <textarea id="tweetInput" placeholder="Kaj se dogaja?"></textarea>
 
+      <!-- Image preview -->
       <div id="imagePreviewWrap">
         <img id="imagePreview" src="" alt="Predogled slike">
-        <button id="removeImageBtn" onclick="removeImage()">✕</button>
+        <button id="removeImageBtn" onclick="removeImage()" title="Odstrani sliko">✕</button>
       </div>
 
+      <!-- Video preview -->
       <div id="videoPreviewWrap">
         <video id="videoPreview" controls></video>
-        <button id="removeVideoBtn" onclick="removeVideo()">✕</button>
+        <button id="removeVideoBtn" onclick="removeVideo()" title="Odstrani video">✕</button>
       </div>
 
-      <div id="uploadProgressWrap">
-        <div id="uploadProgressBar"></div>
+      <!-- Progress bar za nalaganje videa -->
+      <div id="uploadProgressWrap" class="upload-progress-wrap">
+        <div id="uploadProgressBar" class="upload-progress-bar"></div>
       </div>
 
       <div class="tweet-actions-row">
         <div class="tweet-media-btns">
-
-          <input id="imageInput" type="file"
+          <input
+            id="imageInput"
+            type="file"
             accept="image/jpeg,image/png,image/gif,image/webp"
-            onchange="previewImage(event)">
+            onchange="previewImage(event)"
+          >
+          <button class="media-btn" onclick="document.getElementById('imageInput').click()" title="Dodaj sliko">🖼️</button>
 
-          <button onclick="document.getElementById('imageInput').click()">
-            🖼️
-          </button>
-
-          <input id="videoInput" type="file"
+          <input
+            id="videoInput"
+            type="file"
             accept="video/mp4,video/webm,video/quicktime"
-            onchange="previewVideo(event)">
-
-          <button onclick="document.getElementById('videoInput').click()">
-            🎥
-          </button>
-
+            onchange="previewVideo(event)"
+          >
+          <button class="media-btn" onclick="document.getElementById('videoInput').click()" title="Dodaj video">🎥</button>
         </div>
-
         <button onclick="addTweet()">Post</button>
       </div>
     </div>
@@ -109,6 +102,46 @@
     <button onclick="backToFeed()">Back</button>
   </div>
 
+  <!-- MESSAGES PAGE -->
+  <div id="messagesPage">
+    <h2>Sporočila 💬</h2>
+    <div id="conversationsList"></div>
+    <button onclick="backToFeed()">Nazaj</button>
+  </div>
+
+  <!-- CHAT PAGE -->
+  <div id="chatPage">
+    <div class="chat-header">
+      <span id="chatHeader"></span>
+      <a href="index.html" class="button">← Nazaj</a>
+
+<style>
+.button {
+  display: inline-block;
+  padding: 10px 15px;
+  background: #333;
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+}
+.button:hover {
+  background: #555;
+}
+</style>
+    </div>
+    
+    <div id="messagesContainer" class="messages-container"></div>
+    
+    <div class="chat-input-wrap">
+      <input 
+        id="messageInput" 
+        type="text" 
+        placeholder="Vnesi sporočilo..."
+      >
+      <button onclick="sendMessage()">Pošlji</button>
+    </div>
+  </div>
+
   <!-- REWARDS -->
   <div id="rewardsPage"></div>
 
@@ -116,10 +149,7 @@
   <div id="profilePage">
     <div class="profile-header">
       <div id="profileAvatar" class="avatar avatar-large"></div>
-
-      <!-- ✔️ barvno ime (JS ga bo napolnil z innerHTML) -->
       <h2 id="profileName"></h2>
-
       <div id="profileBadge"></div>
     </div>
 
@@ -127,18 +157,13 @@
       <input id="profilePicInput" type="file" accept="image/*">
       <button onclick="uploadProfilePic()">Shrani profilno sliko</button>
 
-      <input id="usernameInput" type="text"
-        placeholder="Uporabniško ime (lahko <red>test</red>)"
-        style="margin-top:15px;">
-
+      <input id="usernameInput" type="text" placeholder="Novo uporabniško ime" style="margin-top:15px;">
       <button onclick="updateUsername()">Shrani uporabniško ime</button>
     </div>
 
     <button onclick="closeProfile()">Back</button>
 
-    <button id="logoutBtn" class="hidden"
-      style="margin-top:10px;background:#333;"
-      onclick="logout()">Odjava</button>
+    <button id="logoutBtn" class="hidden" style="margin-top:10px;background:#333;" onclick="logout()">Odjava</button>
   </div>
 
 </div>
@@ -148,27 +173,27 @@
   <span onclick="goHome()">🏠︎</span>
   <a href="staff.html">🧑🏽‍💻</a>
   <span onclick="openFriends()">👥</span>
+  <span onclick="openMessages()">💬</span>
   <span onclick="openRewards()">🎁</span>
   <span onclick="openMyProfile()">👤</span>
 </div>
 
-<!-- LIGHTBOX -->
+<!-- Lightbox za prikaz slik v polni velikosti -->
 <div id="lightbox">
-  <button onclick="closeLightbox()">✕</button>
-  <img id="lightboxImg" src="">
+  <button id="lightboxClose" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="Slika v polni velikosti">
 </div>
 
-<!-- floating circles -->
 <script>
-for (let i = 0; i < 20; i++) {
-  const c = document.createElement("div");
-  c.className = "floating-circle";
-  const size = Math.random() * 120 + 40;
-  c.style.width = size + "px";
-  c.style.height = size + "px";
-  c.style.left = Math.random() * 100 + "vw";
-  c.style.background = `rgba(${Math.random()*100+100},${Math.random()*100+100},255,0.12)`;
-  c.style.animationDuration = (Math.random() * 20 + 15) + "s";
+for(let i=0;i<20;i++){
+  const c=document.createElement("div");
+  c.className="floating-circle";
+  const size=Math.random()*120+40;
+  c.style.width=size+"px";
+  c.style.height=size+"px";
+  c.style.left=Math.random()*100+"vw";
+  c.style.background=`rgba(${Math.random()*100+100},${Math.random()*100+100},255,0.12)`;
+  c.style.animationDuration=(Math.random()*20+15)+"s";
   document.body.appendChild(c);
 }
 </script>

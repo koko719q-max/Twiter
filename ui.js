@@ -1,41 +1,129 @@
 import { initStore } from "./store.js";
 
-// ── HIDE ALL PAGES ────────────────────────────────
-export function hideAllPages() {
-  document.querySelector(".feed").style.display = "none";
-  document.getElementById("friendsPage").style.display = "none";
-  document.getElementById("profilePage").style.display = "none";
-
-  const rewardsPage = document.getElementById("rewardsPage");
-  if (rewardsPage) rewardsPage.style.display = "none";
-
-  // ✅ ADDED: rules page
-  const rulesPage = document.getElementById("rulesPage");
-  if (rulesPage) rulesPage.style.display = "none";
+/* ─────────────────────────────────────────────
+   ELEMENT HELPERS
+───────────────────────────────────────────── */
+function getBottomNavbar() {
+  return document.querySelector(".bottom-navbar");
 }
 
-// ── NAVIGATION ────────────────────────────────────
+/* ─────────────────────────────────────────────
+   BOTTOM NAVBAR CONTROL
+───────────────────────────────────────────── */
+function toggleBottomNavbar(show) {
+  const nav = getBottomNavbar();
+  if (!nav) return;
+
+  nav.style.display = show ? "flex" : "none";
+}
+
+/* ─────────────────────────────────────────────
+   HIDE ALL PAGES
+───────────────────────────────────────────── */
+export function hideAllPages() {
+  const pages = [
+    ".feed",
+    "#friendsPage",
+    "#profilePage",
+    "#messagesPage",
+    "#chatPage",
+    "#rewardsPage",
+    "#rulesPage",
+  ];
+
+  pages.forEach((selector) => {
+    const el = selector.startsWith(".")
+      ? document.querySelector(selector)
+      : document.getElementById(selector.replace("#", ""));
+
+    if (el) el.style.display = "none";
+  });
+}
+
+/* ─────────────────────────────────────────────
+   FEED
+───────────────────────────────────────────── */
 export function backToFeed() {
   hideAllPages();
-  document.querySelector(".feed").style.display = "block";
+
+  const feed = document.querySelector(".feed");
+  if (feed) feed.style.display = "block";
+
+  toggleBottomNavbar(true);
 }
 
 export function goHome() {
   backToFeed();
 }
 
-// ── AUTH UI ───────────────────────────────────────
+/* ─────────────────────────────────────────────
+   MESSAGES
+───────────────────────────────────────────── */
+export function openMessages() {
+  hideAllPages();
+
+  const messages = document.getElementById("messagesPage");
+  if (messages) messages.style.display = "block";
+
+  toggleBottomNavbar(false);
+}
+
+export function backFromMessages() {
+  backToFeed();
+}
+
+/* ─────────────────────────────────────────────
+   CHAT
+───────────────────────────────────────────── */
+export function openChat() {
+  hideAllPages();
+
+  const chat = document.getElementById("chatPage");
+  if (chat) chat.style.display = "flex";
+
+  toggleBottomNavbar(false);
+}
+
+export function closeChat() {
+  backToFeed();
+}
+
+/* ─────────────────────────────────────────────
+   AUTH UI
+───────────────────────────────────────────── */
 export function showRegister() {
-  document.getElementById("loginBox").style.display = "none";
-  document.getElementById("registerBox").style.display = "block";
+  const login = document.getElementById("loginBox");
+  const register = document.getElementById("registerBox");
+
+  if (login) login.style.display = "none";
+  if (register) register.style.display = "block";
 }
 
 export function showLogin() {
-  document.getElementById("loginBox").style.display = "block";
-  document.getElementById("registerBox").style.display = "none";
+  const login = document.getElementById("loginBox");
+  const register = document.getElementById("registerBox");
+
+  if (login) login.style.display = "block";
+  if (register) register.style.display = "none";
 }
 
-// ── UI INIT ───────────────────────────────────────
+/* ─────────────────────────────────────────────
+   RESET UI ON LOAD
+───────────────────────────────────────────── */
+function resetUI() {
+  hideAllPages();
+
+  const feed = document.querySelector(".feed");
+  if (feed) feed.style.display = "block";
+
+  toggleBottomNavbar(true);
+}
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
 export function initUI() {
   initStore();
+
+  window.addEventListener("load", resetUI);
 }
