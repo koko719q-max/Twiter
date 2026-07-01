@@ -2,6 +2,7 @@ import { db, auth } from "./config.js";
 import { avatarHtml, ownerBadgeHtml, getUserByUid, usersCache } from "./users.js";
 import { expandedComments, loadComments, toggleComments, addComment } from "./comments.js";
 import { sendNotification, showToast } from "./notifications.js";
+import { applyColors, escapeHtml } from "./color.js";
 import {
   collection,
   addDoc,
@@ -12,6 +13,11 @@ import {
   increment,
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// Varen prikaz: owner sme uporabljati barvne tage, vsi ostali so escape-ani
+function renderColored(dbUser, rawText) {
+  return dbUser?.role === "owner" ? applyColors(rawText) : escapeHtml(rawText);
+}
 
 let unsub = null;
 
@@ -120,8 +126,8 @@ export function listenTweets() {
         div.innerHTML = `
           ${avatarHtml(u, t.user, "avatar-small")}
           <div class="tweet-body">
-            <b class="tweet-user" onclick="openProfile('${t.uid}')">${t.user}</b> ${ownerBadgeHtml(u)}
-            <p>${t.text}</p>
+            <b class="tweet-user" onclick="openProfile('${t.uid}')">${renderColored(u, t.user || "User")}</b> ${ownerBadgeHtml(u)}
+            <p>${renderColored(u, t.text || "")}</p>
             ${imageHtml}
             <div class="like-row">
               ❤️ ${t.likes} 🔁 ${t.retweets}
@@ -219,10 +225,6 @@ export async function addTweet() {
 
   try {
     showToast("⏳ Objavljam...");
-    let finalText = text;
-    if (dbUser?.role === "owner" && window.applyColors && text) {
-      finalText = window.applyColors(text);
-    }
     let imageUrl = null;
     if (selectedTweetImageFile) {
       imageUrl = await resizeTweetImage(selectedTweetImageFile);
@@ -230,7 +232,7 @@ export async function addTweet() {
     await addDoc(collection(db, "tweets"), {
       uid: user.uid,
       user: dbUser?.username || user.email,
-      text: finalText,
+      text,
       imageUrl,
       likes: 0,
       comments: 0,

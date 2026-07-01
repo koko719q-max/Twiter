@@ -1,6 +1,7 @@
 import { db, auth } from "./config.js";
 import { getUserByUid, loadUsers, setAvatarEl, ownerBadgeHtml } from "./users.js";
 import { hideAllPages } from "./ui.js";
+import { applyColors, escapeHtml } from "./color.js";
 import {
   collection,
   getDocs,
@@ -9,6 +10,12 @@ import {
   query,
   where
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+// ── Helper: varen prikaz imena (barve za owner, escape za vse ostale) ──
+
+function renderName(dbUser, rawName) {
+  return dbUser?.role === "owner" ? applyColors(rawName) : escapeHtml(rawName);
+}
 
 // ── Resize profile pic ────────────────────────────────
 
@@ -63,11 +70,18 @@ export async function uploadProfilePic() {
 }
 
 // ── Update username ───────────────────────────────────
+//
+// ✔️ FIX: v Firestore se shrani SUROVO ime (kot ga uporabnik natipka),
+// barve/escape se aplicirajo šele ob PRIKAZU (renderName). Tako:
+//  - "Uredi ime" polje po ponovnem odpiranju prikaže pravo, urejeno besedilo
+//    (ne pokvarjen HTML s <span> tagi).
+//  - Owner lahko uporabi barvne tage (<red>, <rainbow>, <neon>, ...).
+//  - Vsi ostali uporabniki so vedno varno escape-ani (brez XSS).
 
 export async function updateUsername() {
   const usernameInput = document.getElementById("usernameInput");
-  const newName = usernameInput.value.trim();
-  if (!newName) { alert("Vnesi novo uporabniško ime"); return; }
+  const rawName = usernameInput.value.trim();
+  if (!rawName) { alert("Vnesi novo uporabniško ime"); return; }
 
   const user = auth.currentUser;
   try {
@@ -75,13 +89,15 @@ export async function updateUsername() {
     const snap = await getDocs(q);
     if (snap.empty) { alert("Uporabniškega profila ni mogoče najti"); return; }
 
-    await updateDoc(doc(db, "users", snap.docs[0].id), { username: newName });
+    await updateDoc(doc(db, "users", snap.docs[0].id), { username: rawName });
     await loadUsers();
 
     const updatedUser = getUserByUid(user.uid);
-    document.getElementById("profileName").innerText = updatedUser?.username || newName;
+    const displayName = updatedUser?.username || rawName;
+
+    document.getElementById("profileName").innerHTML = renderName(updatedUser, displayName);
     document.getElementById("profileBadge").innerHTML = ownerBadgeHtml(updatedUser);
-    setAvatarEl(document.getElementById("profileAvatar"), updatedUser, newName);
+    setAvatarEl(document.getElementById("profileAvatar"), updatedUser, displayName);
     usernameInput.value = "";
     alert("Uporabniško ime posodobljeno. Opomba: že objavljeni tweeti ohranijo staro ime.");
   } catch (err) {
@@ -97,15 +113,18 @@ export async function openProfile(uid) {
   document.getElementById("profilePage").style.display = "block";
 
   const user = getUserByUid(uid);
-  document.getElementById("profileName").innerText = user?.username || "Profile";
+  const displayName = user?.username || "Profile";
+
+  document.getElementById("profileName").innerHTML = renderName(user, displayName);
   document.getElementById("profileBadge").innerHTML = ownerBadgeHtml(user);
-  setAvatarEl(document.getElementById("profileAvatar"), user, user?.username);
+  setAvatarEl(document.getElementById("profileAvatar"), user, displayName);
 
   const isOwnProfile = auth.currentUser && auth.currentUser.uid === uid;
   document.getElementById("photoEditWrap").classList.toggle("hidden", !isOwnProfile);
   document.getElementById("logoutBtn").classList.toggle("hidden", !isOwnProfile);
 
   if (isOwnProfile) {
+    // Surovo ime (brez barvnih tagov v HTML obliki) — pravilno za urejanje
     document.getElementById("usernameInput").value = user?.username || "";
   }
 }

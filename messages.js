@@ -86,6 +86,12 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// ✔️ ADDED: helper za skrivanje/prikaz spodnje navigacije med chatom
+function setNavVisible(visible) {
+  const nav = document.querySelector(".bottom-nav");
+  if (nav) nav.style.display = visible ? "" : "none";
+}
+
 // ── Render messages ───────────────────────────────────────
 
 export function renderMessages() {
@@ -258,6 +264,7 @@ export async function openChat(otherUid) {
   }
 
   hideAllPages();
+  setNavVisible(false); // ✔️ ADDED: skrij spodnjo navigacijo med chatom
 
   const chatPage = document.getElementById("chatPage");
   if (!chatPage) {
@@ -310,6 +317,8 @@ export function closeChat() {
 
   const chatPage = document.getElementById("chatPage");
   if (chatPage) chatPage.style.display = "none";
+
+  setNavVisible(true); // ✔️ ADDED: prikaži spodnjo navigacijo nazaj
 }
 
 // ── Open messages page ────────────────────────────────────
