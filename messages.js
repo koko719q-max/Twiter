@@ -93,6 +93,8 @@ function setNavVisible(visible) {
 }
 
 // ── Render messages ───────────────────────────────────────
+// Sporočila grupiramo po pošiljatelju v zaporedne "clustre" (kot Messenger/iMessage),
+// razredi se ujemajo z chat.css (msg-group, msg-bubble, own-bubble/other-bubble ...).
 
 export function renderMessages() {
   const container = document.getElementById("messagesContainer");
@@ -104,19 +106,56 @@ export function renderMessages() {
     return;
   }
 
-  container.innerHTML = messagesCache.map(msg => {
-    const isOwn = msg.from === user.uid;
-    const sender = getUserByUid(msg.from);
+  // Razdeli sporočila v skupine zaporednih sporočil istega pošiljatelja
+  const groups = [];
+  messagesCache.forEach(msg => {
+    const lastGroup = groups[groups.length - 1];
+    if (lastGroup && lastGroup.from === msg.from) {
+      lastGroup.messages.push(msg);
+    } else {
+      groups.push({ from: msg.from, messages: [msg] });
+    }
+  });
+
+  container.innerHTML = groups.map(group => {
+    const isOwn = group.from === user.uid;
+    const sender = getUserByUid(group.from);
     const senderName = sender?.username || "Neznan";
 
-    return `
-      <div class="message-item ${isOwn ? 'own-message' : 'other-message'}">
-        <div class="message-header">
-          <span class="message-sender">${escapeHtml(senderName)}</span>
-          <span class="message-time">${formatTime(msg.timestamp)}</span>
+    const bubblesHtml = group.messages.map((msg, idx) => {
+      let position = "middle";
+      if (group.messages.length === 1) position = "first last";
+      else if (idx === 0) position = "first";
+      else if (idx === group.messages.length - 1) position = "last";
+
+      const deleteBtn = isOwn
+        ? `<button class="btn-delete-msg" onclick="deleteMessage('${msg.id}')">✕</button>`
+        : "";
+
+      return `
+        <div class="msg-bubble ${isOwn ? 'own-bubble' : 'other-bubble'} ${position}">
+          <span class="msg-text">${escapeHtml(msg.text)}</span>
+          ${deleteBtn}
         </div>
-        <div class="message-content">${escapeHtml(msg.text)}</div>
-        ${isOwn ? `<button class="btn-delete-msg" onclick="deleteMessage('${msg.id}')">Izbriši</button>` : ''}
+        ${idx === group.messages.length - 1 ? `<span class="msg-time">${formatTime(msg.timestamp)}</span>` : ''}
+      `;
+    }).join("");
+
+    const avatarHtmlBlock = !isOwn
+      ? `<div class="msg-avatar">${avatarHtml(sender, senderName, "avatar-small")}</div>`
+      : "";
+
+    const senderNameHtml = !isOwn
+      ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>`
+      : "";
+
+    return `
+      <div class="msg-group ${isOwn ? 'own-group' : 'other-group'}">
+        ${avatarHtmlBlock}
+        <div class="msg-bubbles">
+          ${senderNameHtml}
+          ${bubblesHtml}
+        </div>
       </div>
     `;
   }).join("");
