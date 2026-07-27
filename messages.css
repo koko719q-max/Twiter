@@ -1,5 +1,38 @@
 /* ── Messenger-style chat (iMessage Light look) ───────── */
 
+
+/* ✔️ ADDED: gumb za pošiljanje fotografij */
+.btn-send-photo {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 6px 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.btn-send-photo:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ✔️ ADDED: mehurček s sliko */
+.msg-bubble.image-bubble {
+  padding: 4px;
+  background: transparent;
+  box-shadow: none;
+}
+.msg-image {
+  max-width: 220px;
+  max-height: 300px;
+  border-radius: 14px;
+  display: block;
+  cursor: pointer;
+  object-fit: cover;
+}
+.own-bubble.image-bubble .msg-image {
+  margin-left: auto;
+}
 #chatPage {
   background: #ffffff;
   height: 100vh;
@@ -117,9 +150,10 @@
   border-radius: 20px;
   font-size: 15px;
   line-height: 1.35;
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
   max-width: 100%;
+  width: max-content;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -159,6 +193,11 @@
 
 .msg-text {
   white-space: pre-wrap;
+  flex-shrink: 0;
+}
+
+.msg-text.long-word {
+  overflow-wrap: break-word;
 }
 
 .msg-time {
