@@ -47,10 +47,35 @@
 }
 
 #chatPage {
-  background: linear-gradient(180deg, #fbfbfd 0%, #ffffff 40%);
   height: 100vh;
   color: #1c1c1e;
   position: relative;
+  background-color: #f7f8fa;
+  background-image:
+    radial-gradient(600px circle at 12% 8%, rgba(52, 199, 89, 0.10), transparent 55%),
+    radial-gradient(500px circle at 88% 18%, rgba(88, 199, 250, 0.08), transparent 55%),
+    radial-gradient(700px circle at 25% 95%, rgba(255, 214, 100, 0.07), transparent 55%),
+    linear-gradient(180deg, #fbfbfd 0%, #f5f6f8 100%);
+  background-attachment: fixed;
+  overflow: hidden;
+}
+
+#chatPage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(rgba(0,0,0,0.035) 1px, transparent 1px);
+  background-size: 22px 22px;
+  opacity: 0.5;
+  z-index: 0;
+}
+
+#chatHeader,
+#messagesContainer,
+.chat-input-bar {
+  position: relative;
+  z-index: 1;
 }
 
 #chatHeader {
@@ -258,9 +283,14 @@
 /* ── Seznam pogovorov ─────────────────────────────────── */
 
 #messagesPage {
-  background: #ffffff;
   color: #1c1c1e;
   min-height: 100vh;
+  background-color: #f7f8fa;
+  background-image:
+    radial-gradient(600px circle at 90% 0%, rgba(52, 199, 89, 0.08), transparent 55%),
+    radial-gradient(500px circle at 5% 30%, rgba(88, 199, 250, 0.06), transparent 55%),
+    linear-gradient(180deg, #fbfbfd 0%, #f5f6f8 100%);
+  background-attachment: fixed;
 }
 
 .conversation-item {
