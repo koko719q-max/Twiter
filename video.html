@@ -8,6 +8,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+
+<!-- Firebase (compat build — preprosto za uporabo z <script> tagi, brez bundlerja) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-database-compat.min.js"></script>
+
 <style>
   :root{
     --bg:#0a0d10;
@@ -150,6 +155,17 @@
   button.btn:disabled{opacity:0.4; cursor:not-allowed;}
   button.btn.subtle{background:none;}
 
+  .room-code{
+    font-family:'IBM Plex Mono',monospace; font-size:1.9rem; font-weight:600; letter-spacing:0.08em;
+    text-align:center; color:var(--accent); background:var(--panel-2); border:1px solid var(--border);
+    border-radius:12px; padding:16px; user-select:all;
+  }
+  .room-input{
+    font-family:'IBM Plex Mono',monospace; font-size:1.4rem; letter-spacing:0.1em; text-transform:uppercase;
+    text-align:center; width:100%; background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
+    color:var(--text); padding:12px; margin-top:4px;
+  }
+
   .scan-frame{
     position:relative; border-radius:12px; overflow:hidden; background:#000; aspect-ratio:1/1; max-width:260px; margin:0 auto;
   }
@@ -204,7 +220,7 @@
 <header>
   <div class="brand">
     <div class="brand-mark">V</div>
-    <h1>Videoklic<span>Neposredna povezava med brskalnikoma — brez strežnika</span></h1>
+    <h1>Videoklic<span>WebRTC video + Firebase signalizacija</span></h1>
   </div>
   <div class="status" id="statusPill"><span class="dot"></span><span id="statusText">Ni povezave</span></div>
 </header>
@@ -215,7 +231,7 @@
     <div class="empty-stage" id="emptyStage">
       <div class="ring">🎥</div>
       <div><strong>Čaka na sogovornika</strong></div>
-      <div>Ustvari klic ali skeniraj kodo na desni.</div>
+      <div>Ustvari klic ali vnesi kodo sobe na desni.</div>
     </div>
     <video id="localVideo" class="pip" autoplay playsinline muted></video>
     <div class="controls">
@@ -241,57 +257,49 @@
 
         <!-- CREATE MODE -->
         <div id="createMode">
-          <p class="hint" id="createHint">Klikni gumb, da vklopiš kamero in ustvariš kodo za povezavo.</p>
+          <p class="hint" id="createHint">Klikni gumb, da vklopiš kamero in ustvariš sobo za povezavo.</p>
           <button class="btn primary" id="createCallBtn" style="width:100%;">Ustvari klic</button>
 
           <div id="createQrWrap" style="display:none; margin-top:16px;">
-            <p class="step-label">Sogovornik naj skenira</p>
+            <p class="step-label">Koda sobe</p>
+            <div class="room-code" id="roomCodeOut">— — — —</div>
+            <p class="hint">Povej to kodo sogovorniku ali mu pokaži QR kodo spodaj. Ko se pridruži, se povežeta samodejno.</p>
             <div class="qr-box"><div id="qrCreate"></div></div>
-            <details class="manual" style="margin-top:14px;">
-              <summary>Ali kopiraj kodo ročno</summary>
-              <textarea class="code" id="offerOut" readonly></textarea>
-              <div class="row"><button class="btn" id="copyOfferBtn" style="width:100%;">Kopiraj kodo</button></div>
-            </details>
-
-            <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
-              <p class="step-label">2 · Sprejmi odgovor</p>
-              <p class="hint" style="text-align:left; margin-top:6px;">Ko sogovornik skenira tvojo kodo, ti pošlje svojo — jo skeniraj ali prilepi spodaj.</p>
-              <button class="btn" id="scanAnswerBtn" style="width:100%; margin-top:8px;">📷 Skeniraj odgovor</button>
-              <details class="manual" style="margin-top:10px;">
-                <summary>Ali prilepi kodo ročno</summary>
-                <textarea class="code" id="answerIn" placeholder="Prilepi kodo odgovora …"></textarea>
-                <div class="row"><button class="btn primary" id="connectBtn" style="width:100%;">Poveži se</button></div>
-              </details>
+            <div class="row">
+              <button class="btn" id="copyRoomBtn" style="width:100%;">Kopiraj kodo sobe</button>
             </div>
+
+            <details class="manual" style="margin-top:14px;">
+              <summary>Napredno · ročna izmenjava (brez Firebase)</summary>
+              <p class="hint" style="text-align:left;">Če Firebase ni na voljo, lahko kodo prenesete ročno.</p>
+              <textarea class="code" id="offerOut" readonly></textarea>
+              <div class="row"><button class="btn" id="copyOfferBtn" style="width:100%;">Kopiraj SDP kodo</button></div>
+              <textarea class="code" id="answerIn" placeholder="Prilepi SDP kodo odgovora …" style="margin-top:8px;"></textarea>
+              <div class="row"><button class="btn primary" id="connectBtn" style="width:100%;">Poveži se ročno</button></div>
+            </details>
           </div>
         </div>
 
         <!-- JOIN MODE -->
         <div id="joinMode" style="display:none;">
-          <p class="hint">Skeniraj kodo, ki jo je ustvaril sogovornik.</p>
-          <button class="btn primary" id="scanOfferBtn" style="width:100%;">📷 Skeniraj kodo klica</button>
-          <details class="manual" style="margin-top:14px;">
-            <summary>Ali prilepi kodo ročno</summary>
-            <textarea class="code" id="offerIn" placeholder="Prilepi kodo klica …"></textarea>
-            <div class="row"><button class="btn primary" id="joinBtn" style="width:100%;">Pridruži se</button></div>
-          </details>
+          <p class="hint">Vnesi kodo sobe, ki jo je ustvaril sogovornik.</p>
+          <input type="text" id="roomCodeInput" class="room-input" placeholder="npr. AB12" maxlength="8">
+          <button class="btn primary" id="joinRoomBtn" style="width:100%; margin-top:10px;">Pridruži se sobi</button>
 
-          <div id="joinQrWrap" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
-            <p class="step-label">Pošlji ta odgovor nazaj</p>
-            <div class="qr-box"><div id="qrJoin"></div></div>
-            <details class="manual" style="margin-top:14px;">
-              <summary>Ali kopiraj kodo ročno</summary>
-              <textarea class="code" id="answerOut" readonly></textarea>
-              <div class="row"><button class="btn" id="copyAnswerBtn" style="width:100%;">Kopiraj kodo</button></div>
-            </details>
-          </div>
+          <button class="btn" id="scanOfferBtn" style="width:100%; margin-top:10px;">📷 Ali skeniraj QR kodo</button>
+          <canvas id="scanCanvas" style="display:none;"></canvas>
+
+          <details class="manual" style="margin-top:14px;">
+            <summary>Napredno · ročna izmenjava (brez Firebase)</summary>
+            <textarea class="code" id="offerIn" placeholder="Prilepi SDP kodo klica …"></textarea>
+            <div class="row"><button class="btn primary" id="joinBtn" style="width:100%;">Pridruži se ročno</button></div>
+          </details>
         </div>
 
         <!-- SCANNER (shared) -->
         <div id="scannerWrap" style="display:none;">
           <p class="step-label" id="scannerLabel">Skeniraj kodo</p>
           <div class="scan-frame"><video id="scanVideo" autoplay playsinline muted></video></div>
-          <canvas id="scanCanvas" style="display:none;"></canvas>
           <button class="btn subtle" id="cancelScanBtn" style="width:100%; margin-top:12px;">Prekliči skeniranje</button>
         </div>
 
@@ -310,16 +318,43 @@
   </aside>
 </main>
 
-<footer>Povezava je neposredna (WebRTC) — noben strežnik ne vidi tvojega videa ali klepeta.</footer>
+<footer>Video in klepet potujeta neposredno med brskalnikoma (WebRTC). Firebase se uporablja samo za kratko izmenjavo kod za vzpostavitev povezave (signalizacija) in ne vidi videa ali klepeta.</footer>
 
 <script>
+/* ---------------- Firebase (samo za signalizacijo) ---------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyDJ7jamMsm5UMZEHAbGkolTmxpd-VLaCWQ",
+  authDomain: "twiter-e3dff.firebaseapp.com",
+  databaseURL: "https://twiter-e3dff-default-rtdb.firebaseio.com",
+  projectId: "twiter-e3dff",
+  storageBucket: "twiter-e3dff.firebasestorage.app",
+  messagingSenderId: "1085021108337",
+  appId: "1:1085021108337:web:48c5558d973d79d21b03d0",
+  measurementId: "G-CZYEY3VMZ5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Sobe živijo pod /calls/{roomCode} in se počistijo, ko klic konča.
+function roomRef(code){ return db.ref('calls/' + code); }
+
+function generateRoomCode(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // brez O/0/I/1, da se ne zamenjajo
+  let out = '';
+  for(let i=0;i<4;i++) out += chars[Math.floor(Math.random()*chars.length)];
+  return out;
+}
+
+/* ---------------- WebRTC state ---------------- */
 const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 let pc = null;
 let localStream = null;
 let dataChannel = null;
 let micOn = true, camOn = true;
-let scanStream = null, scanRAF = null, scanTarget = null; // scanTarget: 'offer' | 'answer'
-let scanUsesLocalStream = false;
+let currentRoomCode = null;
+let roomListenerRef = null;
+let isCaller = false;
+let scanStream = null, scanRAF = null;
 
 const el = id => document.getElementById(id);
 const statusPill = el('statusPill'), statusText = el('statusText');
@@ -370,58 +405,6 @@ async function getMedia(){
   return localStream;
 }
 
-// --- Encoding: gzip-compress the SDP before base64, so the QR code stays small enough to fit ---
-async function streamToBytes(stream){
-  const reader = stream.getReader();
-  const chunks = []; let total = 0;
-  while(true){
-    const { done, value } = await reader.read();
-    if(done) break;
-    chunks.push(value); total += value.length;
-  }
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for(const c of chunks){ out.set(c, offset); offset += c.length; }
-  return out;
-}
-function bytesToBase64(bytes){
-  let binary = '';
-  const chunk = 0x8000;
-  for(let i=0;i<bytes.length;i+=chunk){
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
-  }
-  return btoa(binary);
-}
-function base64ToBytes(b64){
-  const binary = atob(b64);
-  const bytes = new Uint8Array(binary.length);
-  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
-async function encode(obj){
-  const json = JSON.stringify(obj);
-  if('CompressionStream' in window){
-    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
-    const bytes = await streamToBytes(stream);
-    return 'Z:' + bytesToBase64(bytes);
-  }
-  return 'R:' + btoa(encodeURIComponent(json));
-}
-async function decode(str){
-  const s = str.trim();
-  if(s.startsWith('Z:')){
-    const bytes = base64ToBytes(s.slice(2));
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-    const out = await streamToBytes(stream);
-    return JSON.parse(new TextDecoder().decode(out));
-  }
-  if(s.startsWith('R:')){
-    return JSON.parse(decodeURIComponent(atob(s.slice(2))));
-  }
-  // backward-compatible: plain base64 JSON, no prefix
-  return JSON.parse(decodeURIComponent(atob(s)));
-}
-
 function renderQR(containerId, text){
   const c = el(containerId);
   c.innerHTML = '';
@@ -429,12 +412,11 @@ function renderQR(containerId, text){
     new QRCode(c, {
       text, width:200, height:200,
       colorDark:'#0a0d10', colorLight:'#ffffff',
-      correctLevel: QRCode.CorrectLevel.L, // lowest error-correction = highest capacity
-      typeNumber: 0 // auto-pick the smallest QR version that fits the data
+      correctLevel: QRCode.CorrectLevel.M
     });
   }catch(err){
     console.error('QR generation failed', err);
-    c.innerHTML = '<p style="color:#333;font-size:0.78rem;text-align:center;padding:8px;max-width:180px;margin:0;">Koda je predolga za QR — uporabi ročno kopiranje spodaj.</p>';
+    c.innerHTML = '<p style="color:#333;font-size:0.78rem;text-align:center;padding:8px;max-width:180px;margin:0;">QR ni na voljo — uporabi kodo sobe zgoraj.</p>';
   }
 }
 
@@ -456,6 +438,8 @@ function setupPeerCommon(peer){
     if(peer.connectionState === 'connected'){
       setStatus('connected', 'Povezano');
       emptyStage.style.display = 'none';
+      // Povezava je vzpostavljena — soba v Firebase ni več potrebna.
+      cleanupRoom();
     } else if(['disconnected','failed','closed'].includes(peer.connectionState)){
       setStatus('', 'Ni povezave');
       emptyStage.style.display = 'flex';
@@ -464,6 +448,13 @@ function setupPeerCommon(peer){
   peer.addEventListener('track', e=>{
     remoteVideo.srcObject = e.streams[0];
     emptyStage.style.display = 'none';
+  });
+  // Vsak nov ICE candidate takoj pošljemo v Firebase, da ju ni treba čakati vseh naenkrat.
+  peer.addEventListener('icecandidate', e=>{
+    if(e.candidate && currentRoomCode){
+      const path = isCaller ? 'callerCandidates' : 'calleeCandidates';
+      roomRef(currentRoomCode).child(path).push(e.candidate.toJSON());
+    }
   });
 }
 
@@ -479,13 +470,26 @@ function setupDataChannel(channel){
   });
 }
 
-// --- Caller flow ---
+function cleanupRoom(){
+  if(roomListenerRef){
+    roomListenerRef.off();
+    roomListenerRef = null;
+  }
+  if(currentRoomCode){
+    // Soba je bila samo za vzpostavitev povezave — po povezavi jo počistimo.
+    roomRef(currentRoomCode).remove().catch(()=>{});
+  }
+}
+
+/* ---------------- Caller flow (Firebase) ---------------- */
 el('createCallBtn').addEventListener('click', async ()=>{
   try{
     setStatus('connecting', 'Pripravljam …');
     el('createCallBtn').disabled = true;
     el('createHint').textContent = 'Odpiram kamero …';
     await getMedia();
+
+    isCaller = true;
     pc = new RTCPeerConnection(rtcConfig);
     setupPeerCommon(pc);
     localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
@@ -493,31 +497,65 @@ el('createCallBtn').addEventListener('click', async ()=>{
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    await waitForIceGatheringComplete(pc);
 
-    const code = await encode(pc.localDescription);
-    el('offerOut').value = code;
-    renderQR('qrCreate', code);
+    // Ustvari unikatno kodo sobe v Firebase.
+    currentRoomCode = generateRoomCode();
+    el('roomCodeOut').textContent = currentRoomCode;
+    renderQR('qrCreate', currentRoomCode);
+    el('offerOut').value = JSON.stringify(pc.localDescription);
     el('createQrWrap').style.display = 'block';
     el('createCallBtn').style.display = 'none';
-    el('createHint').textContent = 'Koda je pripravljena.';
-    setStatus('connecting', 'Čakam na odgovor …');
+    el('createHint').textContent = 'Soba je pripravljena.';
+
+    await roomRef(currentRoomCode).set({
+      offer: { type: offer.type, sdp: offer.sdp },
+      createdAt: firebase.database.ServerValue.TIMESTAMP
+    });
+
+    setStatus('connecting', 'Čakam, da se sogovornik pridruži …');
+
+    // Poslušaj odgovor (answer) sogovornika.
+    roomListenerRef = roomRef(currentRoomCode);
+    roomListenerRef.on('value', async snap=>{
+      const data = snap.val();
+      if(!data) return;
+      if(data.answer && pc.signalingState !== 'stable' && !pc.currentRemoteDescription){
+        try{
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          setStatus('connecting', 'Vzpostavljam povezavo …');
+        }catch(err){ console.error(err); }
+      }
+    });
+
+    // Poslušaj ICE candidate od sogovornika (callee).
+    roomRef(currentRoomCode).child('calleeCandidates').on('child_added', snap=>{
+      const cand = snap.val();
+      if(cand) pc.addIceCandidate(new RTCIceCandidate(cand)).catch(err=>console.error(err));
+    });
+
   }catch(err){
-    setStatus('', 'Napaka pri kameri/mikrofonu');
+    setStatus('', 'Napaka pri kameri/mikrofonu ali Firebase');
     el('createCallBtn').disabled = false;
     console.error(err);
   }
 });
 
+el('copyRoomBtn').addEventListener('click', ()=>{
+  navigator.clipboard.writeText(currentRoomCode || '');
+  el('copyRoomBtn').textContent = 'Kopirano ✓';
+  setTimeout(()=> el('copyRoomBtn').textContent = 'Kopiraj kodo sobe', 1500);
+});
+
 el('copyOfferBtn').addEventListener('click', ()=>{
   navigator.clipboard.writeText(el('offerOut').value);
   el('copyOfferBtn').textContent = 'Kopirano ✓';
-  setTimeout(()=> el('copyOfferBtn').textContent = 'Kopiraj kodo', 1500);
+  setTimeout(()=> el('copyOfferBtn').textContent = 'Kopiraj SDP kodo', 1500);
 });
 
+// Ročni fallback (brez Firebase) — sogovornik prilepi SDP odgovor neposredno.
 el('connectBtn').addEventListener('click', async ()=>{
   try{
-    const answer = await decode(el('answerIn').value);
+    const answer = JSON.parse(el('answerIn').value);
     await pc.setRemoteDescription(answer);
     setStatus('connecting', 'Vzpostavljam povezavo …');
   }catch(err){
@@ -526,12 +564,67 @@ el('connectBtn').addEventListener('click', async ()=>{
   }
 });
 
-// --- Callee flow ---
-async function handleJoin(offerCode){
-  const offer = await decode(offerCode);
+/* ---------------- Callee flow (Firebase) ---------------- */
+async function joinRoom(code){
+  code = code.trim().toUpperCase();
+  if(!code) return;
+
+  setStatus('connecting', 'Iščem sobo …');
+  el('joinRoomBtn').disabled = true;
+
+  const snap = await roomRef(code).once('value');
+  const data = snap.val();
+  if(!data || !data.offer){
+    setStatus('', 'Soba ne obstaja ali je potekla');
+    el('joinRoomBtn').disabled = false;
+    return;
+  }
+
+  currentRoomCode = code;
+  isCaller = false;
+
+  setStatus('connecting', 'Pripravljam …');
+  await getMedia();
+  pc = new RTCPeerConnection(rtcConfig);
+  setupPeerCommon(pc);
+  localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+  pc.addEventListener('datachannel', e=> setupDataChannel(e.channel));
+
+  await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  await roomRef(code).update({
+    answer: { type: answer.type, sdp: answer.sdp }
+  });
+
+  // Poslušaj ICE candidate od klicatelja (caller).
+  roomListenerRef = roomRef(code).child('callerCandidates');
+  roomListenerRef.on('child_added', snap=>{
+    const cand = snap.val();
+    if(cand) pc.addIceCandidate(new RTCIceCandidate(cand)).catch(err=>console.error(err));
+  });
+
+  setStatus('connecting', 'Vzpostavljam povezavo …');
+}
+
+el('joinRoomBtn').addEventListener('click', ()=>{
+  joinRoom(el('roomCodeInput').value).catch(err=>{
+    setStatus('', 'Napaka pri povezavi s sobo');
+    el('joinRoomBtn').disabled = false;
+    console.error(err);
+  });
+});
+el('roomCodeInput').addEventListener('keydown', e=>{
+  if(e.key === 'Enter') el('joinRoomBtn').click();
+});
+
+// Ročni fallback (brez Firebase) — vnos SDP kode klica neposredno.
+async function handleManualJoin(offerCode){
+  const offer = JSON.parse(offerCode);
   setStatus('connecting', 'Pripravljam …');
   el('joinBtn').disabled = true;
-  el('scanOfferBtn').disabled = true;
+  isCaller = false;
   await getMedia();
   pc = new RTCPeerConnection(rtcConfig);
   setupPeerCommon(pc);
@@ -543,31 +636,71 @@ async function handleJoin(offerCode){
   await pc.setLocalDescription(answer);
   await waitForIceGatheringComplete(pc);
 
-  const code = await encode(pc.localDescription);
-  el('answerOut').value = code;
-  renderQR('qrJoin', code);
-  el('joinQrWrap').style.display = 'block';
-  setStatus('connecting', 'Pošlji kodo odgovora nazaj …');
+  el('offerIn').value = ''; // pospravi
+  alert('Kopiraj to kodo odgovora in jo pošlji klicatelju:\n\n' + JSON.stringify(pc.localDescription));
 }
 
 el('joinBtn').addEventListener('click', async ()=>{
   try{
-    await handleJoin(el('offerIn').value);
+    await handleManualJoin(el('offerIn').value);
   }catch(err){
     setStatus('', 'Neveljavna koda klica');
     el('joinBtn').disabled = false;
-    el('scanOfferBtn').disabled = false;
     console.error(err);
   }
 });
 
-el('copyAnswerBtn').addEventListener('click', ()=>{
-  navigator.clipboard.writeText(el('answerOut').value);
-  el('copyAnswerBtn').textContent = 'Kopirano ✓';
-  setTimeout(()=> el('copyAnswerBtn').textContent = 'Kopiraj kodo', 1500);
-});
+/* ---------------- QR scanner (bere kodo sobe iz QR) ---------------- */
+async function startScanner(){
+  el('scannerLabel').textContent = 'Skeniraj QR kodo sobe';
+  el('scannerWrap').style.display = 'block';
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' } });
+    el('scanVideo').srcObject = scanStream;
+    scanLoop();
+  }catch(err){
+    setStatus('', 'Ni dostopa do kamere za skeniranje');
+    console.error(err);
+    stopScanner();
+  }
+}
 
-// --- Controls ---
+function stopScanner(){
+  if(scanRAF) cancelAnimationFrame(scanRAF);
+  if(scanStream) scanStream.getTracks().forEach(t=>t.stop());
+  scanStream = null;
+  el('scanVideo').srcObject = null;
+  el('scannerWrap').style.display = 'none';
+}
+
+function scanLoop(){
+  const video = el('scanVideo');
+  const canvas = el('scanCanvas');
+  if(video.readyState === video.HAVE_ENOUGH_DATA){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, canvas.width, canvas.height);
+    if(code && code.data){
+      const roomCode = code.data.trim();
+      stopScanner();
+      el('roomCodeInput').value = roomCode;
+      joinRoom(roomCode).catch(err=>{
+        setStatus('', 'Napaka pri povezavi s sobo');
+        console.error(err);
+      });
+      return;
+    }
+  }
+  scanRAF = requestAnimationFrame(scanLoop);
+}
+
+el('scanOfferBtn').addEventListener('click', startScanner);
+el('cancelScanBtn').addEventListener('click', stopScanner);
+
+/* ---------------- Controls ---------------- */
 el('micBtn').addEventListener('click', ()=>{
   if(!localStream) return;
   micOn = !micOn;
@@ -586,6 +719,7 @@ el('camBtn').addEventListener('click', ()=>{
 el('endBtn').addEventListener('click', ()=>{
   if(pc) pc.close();
   if(localStream) localStream.getTracks().forEach(t=>t.stop());
+  cleanupRoom();
   localVideo.srcObject = null;
   remoteVideo.srcObject = null;
   emptyStage.style.display = 'flex';
@@ -594,7 +728,12 @@ el('endBtn').addEventListener('click', ()=>{
   el('chatSend').disabled = true;
 });
 
-// --- Chat ---
+// Počisti sobo, če uporabnik zapre zavihek med čakanjem.
+window.addEventListener('beforeunload', ()=>{
+  if(currentRoomCode) roomRef(currentRoomCode).remove();
+});
+
+/* ---------------- Chat ---------------- */
 el('chatForm').addEventListener('submit', e=>{
   e.preventDefault();
   const input = el('chatInput');
@@ -604,79 +743,6 @@ el('chatForm').addEventListener('submit', e=>{
   addMsg(text, 'me');
   input.value = '';
 });
-
-// --- QR scanner (shared for both offer & answer codes) ---
-async function startScanner(target, label){
-  scanTarget = target;
-  el('scannerLabel').textContent = label;
-  el('scannerWrap').style.display = 'block';
-  try{
-    if(target === 'answer' && localStream){
-      // The call's camera is already open — reuse it instead of requesting a
-      // second camera stream, which fails on many phones (camera busy).
-      scanUsesLocalStream = true;
-      el('scanVideo').srcObject = localStream;
-    }else{
-      scanUsesLocalStream = false;
-      scanStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' } });
-      el('scanVideo').srcObject = scanStream;
-    }
-    scanLoop();
-  }catch(err){
-    setStatus('', 'Ni dostopa do kamere za skeniranje');
-    console.error(err);
-    stopScanner();
-  }
-}
-
-function stopScanner(){
-  if(scanRAF) cancelAnimationFrame(scanRAF);
-  if(scanStream && !scanUsesLocalStream){
-    scanStream.getTracks().forEach(t=>t.stop());
-  }
-  scanStream = null;
-  scanUsesLocalStream = false;
-  el('scanVideo').srcObject = null;
-  el('scannerWrap').style.display = 'none';
-}
-
-function scanLoop(){
-  const video = el('scanVideo');
-  const canvas = el('scanCanvas');
-  if(video.readyState === video.HAVE_ENOUGH_DATA){
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, canvas.width, canvas.height);
-    if(code && code.data){
-      const result = code.data;
-      stopScanner();
-      if(scanTarget === 'offer'){
-        el('offerIn').value = result;
-        handleJoin(result).catch(err=>{
-          setStatus('', 'Neveljavna koda klica');
-          console.error(err);
-        });
-      } else if(scanTarget === 'answer'){
-        el('answerIn').value = result;
-        decode(result).then(desc => pc.setRemoteDescription(desc)).then(()=>{
-          setStatus('connecting', 'Vzpostavljam povezavo …');
-        }).catch(err=>{
-          setStatus('connecting', 'Neveljavna koda odgovora');
-          console.error(err);
-        });
-      }
-      return;
-    }
-  }
-  scanRAF = requestAnimationFrame(scanLoop);
-}
-
-el('scanOfferBtn').addEventListener('click', ()=> startScanner('offer', 'Skeniraj kodo klica'));
-el('scanAnswerBtn').addEventListener('click', ()=> startScanner('answer', 'Skeniraj kodo odgovora'));
-el('cancelScanBtn').addEventListener('click', stopScanner);
 </script>
 </body>
 </html>
