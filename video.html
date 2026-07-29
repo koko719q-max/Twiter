@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Videoklic — neposredna povezava</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<style>
+  :root{
+    --bg:#0a0d10;
+    --panel:#12171c;
+    --panel-2:#1b222a;
+    --border:#232b33;
+    --text:#e7ecef;
+    --text-dim:#8a98a5;
+    --accent:#33d6c0;
+    --accent-dim:#1d7d71;
+    --danger:#e5484d;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1100px 560px at 85% -10%, rgba(51,214,192,0.08), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter', system-ui, sans-serif;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  ::selection{background:var(--accent-dim); color:var(--text);}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:20px 28px; border-bottom:1px solid var(--border); gap:16px; flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{
+    width:36px; height:36px; border-radius:10px;
+    background:linear-gradient(145deg, var(--accent), var(--accent-dim));
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Space Grotesk', sans-serif; font-weight:700; color:#04211d;
+    flex-shrink:0; font-size:1.05rem;
+  }
+  .brand h1{ font-family:'Space Grotesk', sans-serif; font-size:1.2rem; margin:0; font-weight:600; letter-spacing:-0.01em;}
+  .brand span{display:block; font-size:0.8rem; color:var(--text-dim); font-weight:400; margin-top:2px;}
+
+  .status{
+    display:flex; align-items:center; gap:9px;
+    font-family:'IBM Plex Mono', monospace; font-size:0.82rem; color:var(--text-dim);
+    background:var(--panel); border:1px solid var(--border);
+    padding:8px 16px; border-radius:999px;
+  }
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--text-dim); transition:background .3s;}
+  .status.connecting .dot{background:#f2a65a; animation:pulse 1.1s infinite;}
+  .status.connected .dot{background:var(--accent); box-shadow:0 0 8px var(--accent);}
+  .status.connected{color:var(--accent);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+  main{
+    flex:1; display:grid; grid-template-columns:1fr 380px;
+    gap:22px; padding:22px 28px 30px; align-items:start;
+  }
+  @media (max-width:900px){ main{grid-template-columns:1fr; padding:16px;} }
+
+  .stage{
+    position:relative; background:var(--panel); border:1px solid var(--border);
+    border-radius:var(--radius); overflow:hidden; aspect-ratio:16/10; display:flex;
+  }
+  video{width:100%; height:100%; object-fit:cover; background:#000;}
+  #remoteVideo{width:100%; height:100%;}
+  .pip{
+    position:absolute; width:25%; min-width:110px; aspect-ratio:4/3;
+    bottom:18px; right:18px; border-radius:12px; overflow:hidden;
+    border:1px solid rgba(255,255,255,0.12); box-shadow:0 10px 26px rgba(0,0,0,0.45); background:#000;
+  }
+  .empty-stage{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:10px; color:var(--text-dim); text-align:center; padding:20px;
+  }
+  .empty-stage .ring{
+    width:58px; height:58px; border-radius:50%; border:1.5px dashed var(--border);
+    display:flex; align-items:center; justify-content:center; font-size:1.4rem;
+  }
+  .empty-stage strong{color:var(--text); font-family:'Space Grotesk',sans-serif; font-weight:600;}
+
+  .controls{
+    position:absolute; left:50%; bottom:18px; transform:translateX(-50%);
+    display:flex; gap:10px; background:rgba(10,13,16,0.72); backdrop-filter:blur(10px);
+    padding:10px; border-radius:999px; border:1px solid rgba(255,255,255,0.08);
+  }
+  .ctrl-btn{
+    width:46px; height:46px; border-radius:50%; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text); font-size:1.1rem; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .15s, background .15s, border-color .15s;
+  }
+  .ctrl-btn:hover{transform:translateY(-2px); border-color:var(--accent-dim);}
+  .ctrl-btn.off{background:rgba(229,72,77,0.15); border-color:var(--danger); color:var(--danger);}
+  .ctrl-btn.end{background:var(--danger); border-color:var(--danger); color:#fff;}
+  .ctrl-btn.end:hover{background:#c53f43;}
+
+  aside{
+    display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--border);
+    border-radius:var(--radius); height:100%; min-height:460px; overflow:hidden;
+  }
+  .tabs{display:flex; border-bottom:1px solid var(--border);}
+  .tab{
+    flex:1; text-align:center; padding:14px 8px; font-family:'Space Grotesk',sans-serif;
+    font-weight:600; font-size:0.9rem; color:var(--text-dim); cursor:pointer; background:none; border:none;
+    border-bottom:2px solid transparent;
+  }
+  .tab.active{color:var(--text); border-bottom-color:var(--accent);}
+  .panel{display:none; flex-direction:column; flex:1; min-height:0;}
+  .panel.active{display:flex;}
+
+  /* --- Simple connect flow --- */
+  .connect-wrap{padding:22px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px;}
+  .mode-switch{
+    display:flex; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; padding:4px;
+  }
+  .mode-switch button{
+    flex:1; border:none; background:none; color:var(--text-dim); font-weight:600; font-size:0.85rem;
+    font-family:'Inter',sans-serif; padding:9px; border-radius:999px; cursor:pointer; transition:background .15s, color .15s;
+  }
+  .mode-switch button.active{background:var(--accent); color:#04211d;}
+
+  .qr-box{
+    background:#fff; border-radius:12px; padding:16px; display:flex; align-items:center; justify-content:center;
+    min-height:200px;
+  }
+  .hint{font-size:0.85rem; color:var(--text-dim); line-height:1.5; text-align:center;}
+  .hint strong{color:var(--text); font-weight:500;}
+
+  button.btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:0.86rem;
+    border-radius:10px; border:1px solid var(--border); background:var(--panel-2); color:var(--text);
+    padding:11px 14px; cursor:pointer; transition:border-color .15s, background .15s;
+  }
+  button.btn:hover{border-color:var(--accent-dim);}
+  button.btn.primary{background:var(--accent); border-color:var(--accent); color:#04211d;}
+  button.btn.primary:hover{background:#3fe4cd;}
+  button.btn:disabled{opacity:0.4; cursor:not-allowed;}
+  button.btn.subtle{background:none;}
+
+  .scan-frame{
+    position:relative; border-radius:12px; overflow:hidden; background:#000; aspect-ratio:1/1; max-width:260px; margin:0 auto;
+  }
+  .scan-frame video{width:100%; height:100%; object-fit:cover;}
+  .scan-frame::after{
+    content:''; position:absolute; inset:14%; border:2px solid var(--accent); border-radius:14px;
+    box-shadow:0 0 0 999px rgba(0,0,0,0.35); pointer-events:none;
+  }
+
+  details.manual{ border-top:1px solid var(--border); padding-top:14px; }
+  details.manual summary{
+    cursor:pointer; font-size:0.82rem; color:var(--text-dim); font-family:'IBM Plex Mono',monospace;
+    list-style:none;
+  }
+  details.manual summary::-webkit-details-marker{display:none;}
+  details.manual summary::before{content:'+ '; color:var(--accent);}
+  details.manual[open] summary::before{content:'– ';}
+  textarea.code{
+    width:100%; margin-top:10px; background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    color:var(--accent); font-family:'IBM Plex Mono',monospace; font-size:0.72rem; padding:10px; resize:none; height:56px; line-height:1.4;
+  }
+  .row{display:flex; gap:8px; margin-top:8px;}
+  .row .btn{flex:1;}
+  .step-label{
+    font-family:'IBM Plex Mono',monospace; font-size:0.75rem; color:var(--accent);
+    text-transform:uppercase; letter-spacing:0.04em;
+  }
+
+  /* Chat */
+  .chat-log{flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:8px; min-height:0;}
+  .msg{max-width:80%; padding:8px 12px; border-radius:12px; font-size:0.88rem; line-height:1.4;}
+  .msg.me{align-self:flex-end; background:var(--accent-dim); color:#eafffb; border-bottom-right-radius:3px;}
+  .msg.them{align-self:flex-start; background:var(--panel-2); border:1px solid var(--border); border-bottom-left-radius:3px;}
+  .msg.sys{align-self:center; color:var(--text-dim); font-size:0.78rem; font-family:'IBM Plex Mono',monospace; background:none;}
+  .chat-form{display:flex; gap:8px; padding:12px; border-top:1px solid var(--border);}
+  .chat-form input{
+    flex:1; background:var(--panel-2); border:1px solid var(--border); border-radius:999px;
+    padding:10px 14px; color:var(--text); font-family:'Inter',sans-serif; font-size:0.88rem;
+  }
+  .chat-form button{width:38px; height:38px; border-radius:50%; border:none; background:var(--accent); color:#04211d; font-weight:700; cursor:pointer;}
+  .chat-form button:disabled{opacity:0.4; cursor:not-allowed;}
+
+  footer{text-align:center; padding:12px; font-size:0.75rem; color:var(--text-dim); font-family:'IBM Plex Mono',monospace;}
+  @media (prefers-reduced-motion: reduce){
+    .status.connecting .dot{animation:none;}
+    .ctrl-btn:hover{transform:none;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">V</div>
+    <h1>Videoklic<span>Neposredna povezava med brskalnikoma — brez strežnika</span></h1>
+  </div>
+  <div class="status" id="statusPill"><span class="dot"></span><span id="statusText">Ni povezave</span></div>
+</header>
+
+<main>
+  <div class="stage" id="stage">
+    <video id="remoteVideo" autoplay playsinline></video>
+    <div class="empty-stage" id="emptyStage">
+      <div class="ring">🎥</div>
+      <div><strong>Čaka na sogovornika</strong></div>
+      <div>Ustvari klic ali skeniraj kodo na desni.</div>
+    </div>
+    <video id="localVideo" class="pip" autoplay playsinline muted></video>
+    <div class="controls">
+      <button class="ctrl-btn" id="micBtn" title="Utišaj/vklopi mikrofon">🎙️</button>
+      <button class="ctrl-btn" id="camBtn" title="Vklopi/izklopi kamero">📷</button>
+      <button class="ctrl-btn end" id="endBtn" title="Končaj klic">⏹</button>
+    </div>
+  </div>
+
+  <aside>
+    <div class="tabs">
+      <button class="tab active" data-tab="connect">Povezava</button>
+      <button class="tab" data-tab="chat">Klepet</button>
+    </div>
+
+    <div class="panel active" id="panel-connect">
+      <div class="connect-wrap">
+
+        <div class="mode-switch">
+          <button id="modeCreateBtn" class="active">Ustvari klic</button>
+          <button id="modeJoinBtn">Pridruži se</button>
+        </div>
+
+        <!-- CREATE MODE -->
+        <div id="createMode">
+          <p class="hint" id="createHint">Klikni gumb, da vklopiš kamero in ustvariš kodo za povezavo.</p>
+          <button class="btn primary" id="createCallBtn" style="width:100%;">Ustvari klic</button>
+
+          <div id="createQrWrap" style="display:none; margin-top:16px;">
+            <p class="step-label">Sogovornik naj skenira</p>
+            <div class="qr-box"><div id="qrCreate"></div></div>
+            <details class="manual" style="margin-top:14px;">
+              <summary>Ali kopiraj kodo ročno</summary>
+              <textarea class="code" id="offerOut" readonly></textarea>
+              <div class="row"><button class="btn" id="copyOfferBtn" style="width:100%;">Kopiraj kodo</button></div>
+            </details>
+
+            <div style="margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+              <p class="step-label">2 · Sprejmi odgovor</p>
+              <p class="hint" style="text-align:left; margin-top:6px;">Ko sogovornik skenira tvojo kodo, ti pošlje svojo — jo skeniraj ali prilepi spodaj.</p>
+              <button class="btn" id="scanAnswerBtn" style="width:100%; margin-top:8px;">📷 Skeniraj odgovor</button>
+              <details class="manual" style="margin-top:10px;">
+                <summary>Ali prilepi kodo ročno</summary>
+                <textarea class="code" id="answerIn" placeholder="Prilepi kodo odgovora …"></textarea>
+                <div class="row"><button class="btn primary" id="connectBtn" style="width:100%;">Poveži se</button></div>
+              </details>
+            </div>
+          </div>
+        </div>
+
+        <!-- JOIN MODE -->
+        <div id="joinMode" style="display:none;">
+          <p class="hint">Skeniraj kodo, ki jo je ustvaril sogovornik.</p>
+          <button class="btn primary" id="scanOfferBtn" style="width:100%;">📷 Skeniraj kodo klica</button>
+          <details class="manual" style="margin-top:14px;">
+            <summary>Ali prilepi kodo ročno</summary>
+            <textarea class="code" id="offerIn" placeholder="Prilepi kodo klica …"></textarea>
+            <div class="row"><button class="btn primary" id="joinBtn" style="width:100%;">Pridruži se</button></div>
+          </details>
+
+          <div id="joinQrWrap" style="display:none; margin-top:16px; border-top:1px solid var(--border); padding-top:14px;">
+            <p class="step-label">Pošlji ta odgovor nazaj</p>
+            <div class="qr-box"><div id="qrJoin"></div></div>
+            <details class="manual" style="margin-top:14px;">
+              <summary>Ali kopiraj kodo ročno</summary>
+              <textarea class="code" id="answerOut" readonly></textarea>
+              <div class="row"><button class="btn" id="copyAnswerBtn" style="width:100%;">Kopiraj kodo</button></div>
+            </details>
+          </div>
+        </div>
+
+        <!-- SCANNER (shared) -->
+        <div id="scannerWrap" style="display:none;">
+          <p class="step-label" id="scannerLabel">Skeniraj kodo</p>
+          <div class="scan-frame"><video id="scanVideo" autoplay playsinline muted></video></div>
+          <canvas id="scanCanvas" style="display:none;"></canvas>
+          <button class="btn subtle" id="cancelScanBtn" style="width:100%; margin-top:12px;">Prekliči skeniranje</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="panel" id="panel-chat">
+      <div class="chat-log" id="chatLog">
+        <div class="msg sys">Klepet bo na voljo, ko bo povezava vzpostavljena.</div>
+      </div>
+      <form class="chat-form" id="chatForm">
+        <input type="text" id="chatInput" placeholder="Napiši sporočilo …" disabled autocomplete="off">
+        <button type="submit" id="chatSend" disabled>➤</button>
+      </form>
+    </div>
+  </aside>
+</main>
+
+<footer>Povezava je neposredna (WebRTC) — noben strežnik ne vidi tvojega videa ali klepeta.</footer>
+
+<script>
+const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let pc = null;
+let localStream = null;
+let dataChannel = null;
+let micOn = true, camOn = true;
+let scanStream = null, scanRAF = null, scanTarget = null; // scanTarget: 'offer' | 'answer'
+let scanUsesLocalStream = false;
+
+const el = id => document.getElementById(id);
+const statusPill = el('statusPill'), statusText = el('statusText');
+const emptyStage = el('emptyStage');
+const localVideo = el('localVideo'), remoteVideo = el('remoteVideo');
+
+function setStatus(state, text){
+  statusPill.className = 'status ' + state;
+  statusText.textContent = text;
+}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');
+    el('panel-'+tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Mode switch (create / join)
+el('modeCreateBtn').addEventListener('click', ()=>{
+  el('modeCreateBtn').classList.add('active');
+  el('modeJoinBtn').classList.remove('active');
+  el('createMode').style.display = 'block';
+  el('joinMode').style.display = 'none';
+});
+el('modeJoinBtn').addEventListener('click', ()=>{
+  el('modeJoinBtn').classList.add('active');
+  el('modeCreateBtn').classList.remove('active');
+  el('joinMode').style.display = 'block';
+  el('createMode').style.display = 'none';
+});
+
+function addMsg(text, cls){
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.textContent = text;
+  el('chatLog').appendChild(d);
+  el('chatLog').scrollTop = el('chatLog').scrollHeight;
+}
+
+async function getMedia(){
+  if(localStream) return localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+  localVideo.srcObject = localStream;
+  return localStream;
+}
+
+// --- Encoding: gzip-compress the SDP before base64, so the QR code stays small enough to fit ---
+async function streamToBytes(stream){
+  const reader = stream.getReader();
+  const chunks = []; let total = 0;
+  while(true){
+    const { done, value } = await reader.read();
+    if(done) break;
+    chunks.push(value); total += value.length;
+  }
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for(const c of chunks){ out.set(c, offset); offset += c.length; }
+  return out;
+}
+function bytesToBase64(bytes){
+  let binary = '';
+  const chunk = 0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i+chunk));
+  }
+  return btoa(binary);
+}
+function base64ToBytes(b64){
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+async function encode(obj){
+  const json = JSON.stringify(obj);
+  if('CompressionStream' in window){
+    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
+    const bytes = await streamToBytes(stream);
+    return 'Z:' + bytesToBase64(bytes);
+  }
+  return 'R:' + btoa(encodeURIComponent(json));
+}
+async function decode(str){
+  const s = str.trim();
+  if(s.startsWith('Z:')){
+    const bytes = base64ToBytes(s.slice(2));
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+    const out = await streamToBytes(stream);
+    return JSON.parse(new TextDecoder().decode(out));
+  }
+  if(s.startsWith('R:')){
+    return JSON.parse(decodeURIComponent(atob(s.slice(2))));
+  }
+  // backward-compatible: plain base64 JSON, no prefix
+  return JSON.parse(decodeURIComponent(atob(s)));
+}
+
+function renderQR(containerId, text){
+  const c = el(containerId);
+  c.innerHTML = '';
+  try{
+    new QRCode(c, {
+      text, width:200, height:200,
+      colorDark:'#0a0d10', colorLight:'#ffffff',
+      correctLevel: QRCode.CorrectLevel.L, // lowest error-correction = highest capacity
+      typeNumber: 0 // auto-pick the smallest QR version that fits the data
+    });
+  }catch(err){
+    console.error('QR generation failed', err);
+    c.innerHTML = '<p style="color:#333;font-size:0.78rem;text-align:center;padding:8px;max-width:180px;margin:0;">Koda je predolga za QR — uporabi ročno kopiranje spodaj.</p>';
+  }
+}
+
+function waitForIceGatheringComplete(peer){
+  return new Promise(resolve=>{
+    if(peer.iceGatheringState === 'complete'){ resolve(); return; }
+    function check(){
+      if(peer.iceGatheringState === 'complete'){
+        peer.removeEventListener('icegatheringstatechange', check);
+        resolve();
+      }
+    }
+    peer.addEventListener('icegatheringstatechange', check);
+  });
+}
+
+function setupPeerCommon(peer){
+  peer.addEventListener('connectionstatechange', ()=>{
+    if(peer.connectionState === 'connected'){
+      setStatus('connected', 'Povezano');
+      emptyStage.style.display = 'none';
+    } else if(['disconnected','failed','closed'].includes(peer.connectionState)){
+      setStatus('', 'Ni povezave');
+      emptyStage.style.display = 'flex';
+    }
+  });
+  peer.addEventListener('track', e=>{
+    remoteVideo.srcObject = e.streams[0];
+    emptyStage.style.display = 'none';
+  });
+}
+
+function setupDataChannel(channel){
+  dataChannel = channel;
+  dataChannel.addEventListener('open', ()=>{
+    el('chatInput').disabled = false;
+    el('chatSend').disabled = false;
+    addMsg('Klepet je povezan.', 'sys');
+  });
+  dataChannel.addEventListener('message', e=>{
+    addMsg(e.data, 'them');
+  });
+}
+
+// --- Caller flow ---
+el('createCallBtn').addEventListener('click', async ()=>{
+  try{
+    setStatus('connecting', 'Pripravljam …');
+    el('createCallBtn').disabled = true;
+    el('createHint').textContent = 'Odpiram kamero …';
+    await getMedia();
+    pc = new RTCPeerConnection(rtcConfig);
+    setupPeerCommon(pc);
+    localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+    setupDataChannel(pc.createDataChannel('chat'));
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitForIceGatheringComplete(pc);
+
+    const code = await encode(pc.localDescription);
+    el('offerOut').value = code;
+    renderQR('qrCreate', code);
+    el('createQrWrap').style.display = 'block';
+    el('createCallBtn').style.display = 'none';
+    el('createHint').textContent = 'Koda je pripravljena.';
+    setStatus('connecting', 'Čakam na odgovor …');
+  }catch(err){
+    setStatus('', 'Napaka pri kameri/mikrofonu');
+    el('createCallBtn').disabled = false;
+    console.error(err);
+  }
+});
+
+el('copyOfferBtn').addEventListener('click', ()=>{
+  navigator.clipboard.writeText(el('offerOut').value);
+  el('copyOfferBtn').textContent = 'Kopirano ✓';
+  setTimeout(()=> el('copyOfferBtn').textContent = 'Kopiraj kodo', 1500);
+});
+
+el('connectBtn').addEventListener('click', async ()=>{
+  try{
+    const answer = await decode(el('answerIn').value);
+    await pc.setRemoteDescription(answer);
+    setStatus('connecting', 'Vzpostavljam povezavo …');
+  }catch(err){
+    setStatus('connecting', 'Neveljavna koda odgovora');
+    console.error(err);
+  }
+});
+
+// --- Callee flow ---
+async function handleJoin(offerCode){
+  const offer = await decode(offerCode);
+  setStatus('connecting', 'Pripravljam …');
+  el('joinBtn').disabled = true;
+  el('scanOfferBtn').disabled = true;
+  await getMedia();
+  pc = new RTCPeerConnection(rtcConfig);
+  setupPeerCommon(pc);
+  localStream.getTracks().forEach(t=>pc.addTrack(t, localStream));
+  pc.addEventListener('datachannel', e=> setupDataChannel(e.channel));
+
+  await pc.setRemoteDescription(offer);
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+  await waitForIceGatheringComplete(pc);
+
+  const code = await encode(pc.localDescription);
+  el('answerOut').value = code;
+  renderQR('qrJoin', code);
+  el('joinQrWrap').style.display = 'block';
+  setStatus('connecting', 'Pošlji kodo odgovora nazaj …');
+}
+
+el('joinBtn').addEventListener('click', async ()=>{
+  try{
+    await handleJoin(el('offerIn').value);
+  }catch(err){
+    setStatus('', 'Neveljavna koda klica');
+    el('joinBtn').disabled = false;
+    el('scanOfferBtn').disabled = false;
+    console.error(err);
+  }
+});
+
+el('copyAnswerBtn').addEventListener('click', ()=>{
+  navigator.clipboard.writeText(el('answerOut').value);
+  el('copyAnswerBtn').textContent = 'Kopirano ✓';
+  setTimeout(()=> el('copyAnswerBtn').textContent = 'Kopiraj kodo', 1500);
+});
+
+// --- Controls ---
+el('micBtn').addEventListener('click', ()=>{
+  if(!localStream) return;
+  micOn = !micOn;
+  localStream.getAudioTracks().forEach(t=> t.enabled = micOn);
+  el('micBtn').classList.toggle('off', !micOn);
+  el('micBtn').textContent = micOn ? '🎙️' : '🔇';
+});
+
+el('camBtn').addEventListener('click', ()=>{
+  if(!localStream) return;
+  camOn = !camOn;
+  localStream.getVideoTracks().forEach(t=> t.enabled = camOn);
+  el('camBtn').classList.toggle('off', !camOn);
+});
+
+el('endBtn').addEventListener('click', ()=>{
+  if(pc) pc.close();
+  if(localStream) localStream.getTracks().forEach(t=>t.stop());
+  localVideo.srcObject = null;
+  remoteVideo.srcObject = null;
+  emptyStage.style.display = 'flex';
+  setStatus('', 'Klic končan');
+  el('chatInput').disabled = true;
+  el('chatSend').disabled = true;
+});
+
+// --- Chat ---
+el('chatForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const input = el('chatInput');
+  const text = input.value.trim();
+  if(!text || !dataChannel || dataChannel.readyState !== 'open') return;
+  dataChannel.send(text);
+  addMsg(text, 'me');
+  input.value = '';
+});
+
+// --- QR scanner (shared for both offer & answer codes) ---
+async function startScanner(target, label){
+  scanTarget = target;
+  el('scannerLabel').textContent = label;
+  el('scannerWrap').style.display = 'block';
+  try{
+    if(target === 'answer' && localStream){
+      // The call's camera is already open — reuse it instead of requesting a
+      // second camera stream, which fails on many phones (camera busy).
+      scanUsesLocalStream = true;
+      el('scanVideo').srcObject = localStream;
+    }else{
+      scanUsesLocalStream = false;
+      scanStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' } });
+      el('scanVideo').srcObject = scanStream;
+    }
+    scanLoop();
+  }catch(err){
+    setStatus('', 'Ni dostopa do kamere za skeniranje');
+    console.error(err);
+    stopScanner();
+  }
+}
+
+function stopScanner(){
+  if(scanRAF) cancelAnimationFrame(scanRAF);
+  if(scanStream && !scanUsesLocalStream){
+    scanStream.getTracks().forEach(t=>t.stop());
+  }
+  scanStream = null;
+  scanUsesLocalStream = false;
+  el('scanVideo').srcObject = null;
+  el('scannerWrap').style.display = 'none';
+}
+
+function scanLoop(){
+  const video = el('scanVideo');
+  const canvas = el('scanCanvas');
+  if(video.readyState === video.HAVE_ENOUGH_DATA){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, canvas.width, canvas.height);
+    if(code && code.data){
+      const result = code.data;
+      stopScanner();
+      if(scanTarget === 'offer'){
+        el('offerIn').value = result;
+        handleJoin(result).catch(err=>{
+          setStatus('', 'Neveljavna koda klica');
+          console.error(err);
+        });
+      } else if(scanTarget === 'answer'){
+        el('answerIn').value = result;
+        decode(result).then(desc => pc.setRemoteDescription(desc)).then(()=>{
+          setStatus('connecting', 'Vzpostavljam povezavo …');
+        }).catch(err=>{
+          setStatus('connecting', 'Neveljavna koda odgovora');
+          console.error(err);
+        });
+      }
+      return;
+    }
+  }
+  scanRAF = requestAnimationFrame(scanLoop);
+}
+
+el('scanOfferBtn').addEventListener('click', ()=> startScanner('offer', 'Skeniraj kodo klica'));
+el('scanAnswerBtn').addEventListener('click', ()=> startScanner('answer', 'Skeniraj kodo odgovora'));
+el('cancelScanBtn').addEventListener('click', stopScanner);
+</script>
+</body>
+</html>
