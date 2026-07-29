@@ -109,8 +109,10 @@
   }
   .ctrl-btn:hover{transform:translateY(-2px); border-color:var(--accent-dim);}
   .ctrl-btn.off{background:rgba(229,72,77,0.15); border-color:var(--danger); color:var(--danger);}
+  .ctrl-btn.sharing{background:rgba(51,214,192,0.18); border-color:var(--accent); color:var(--accent);}
   .ctrl-btn.end{background:var(--danger); border-color:var(--danger); color:#fff;}
   .ctrl-btn.end:hover{background:#c53f43;}
+  .ctrl-btn:disabled{opacity:0.35; cursor:not-allowed;}
 
   aside{
     display:flex; flex-direction:column; background:var(--panel); border:1px solid var(--border);
@@ -237,6 +239,7 @@
     <div class="controls">
       <button class="ctrl-btn" id="micBtn" title="Utišaj/vklopi mikrofon">🎙️</button>
       <button class="ctrl-btn" id="camBtn" title="Vklopi/izklopi kamero">📷</button>
+      <button class="ctrl-btn" id="screenBtn" title="Deli zaslon">🖥️</button>
       <button class="ctrl-btn end" id="endBtn" title="Končaj klic">⏹</button>
     </div>
   </div>
@@ -355,6 +358,10 @@ let currentRoomCode = null;
 let roomListenerRef = null;
 let isCaller = false;
 let scanStream = null, scanRAF = null;
+
+// Screen sharing state
+let screenStream = null;
+let isSharingScreen = false;
 
 const el = id => document.getElementById(id);
 const statusPill = el('statusPill'), statusText = el('statusText');
@@ -716,7 +723,88 @@ el('camBtn').addEventListener('click', ()=>{
   el('camBtn').classList.toggle('off', !camOn);
 });
 
+/* ---------------- Screen sharing ---------------- */
+el('screenBtn').addEventListener('click', async ()=>{
+  if(!pc){
+    setStatus('', 'Najprej vzpostavi povezavo');
+    return;
+  }
+
+  if(!isSharingScreen){
+    await startScreenShare();
+  } else {
+    await stopScreenShare();
+  }
+});
+
+async function startScreenShare(){
+  try{
+    screenStream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: 'always' },
+      audio: false
+    });
+  }catch(err){
+    // Uporabnik je preklical izbiro okna/zaslona v brskalnikovem dialogu.
+    console.error('Screen share preklican', err);
+    return;
+  }
+
+  const screenTrack = screenStream.getVideoTracks()[0];
+
+  // Poišči video sender v obstoječi peer connection in mu zamenjaj track.
+  // replaceTrack ne zahteva nove ponudbe/odgovora (renegotiation) — sogovornik
+  // preprosto začne prejemati nov video na isti povezavi.
+  const videoSender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+  if(videoSender){
+    await videoSender.replaceTrack(screenTrack);
+  }
+
+  // Lokalno pokaži zaslon namesto kamere v pip okencu.
+  localVideo.srcObject = screenStream;
+
+  // Če uporabnik ustavi deljenje preko brskalnikovega UI-ja ("Stop sharing" vrstica),
+  // to ujamemo tukaj in samodejno preklopimo nazaj na kamero.
+  screenTrack.addEventListener('ended', ()=>{
+    if(isSharingScreen) stopScreenShare();
+  });
+
+  isSharingScreen = true;
+  el('screenBtn').classList.add('sharing');
+  el('screenBtn').title = 'Ustavi deljenje zaslona';
+  el('camBtn').disabled = true; // kamera je med deljenjem zaslona onemogočena
+  addMsg('Deljenje zaslona je vklopljeno.', 'sys');
+}
+
+async function stopScreenShare(){
+  if(!isSharingScreen) return;
+
+  if(screenStream){
+    screenStream.getTracks().forEach(t => t.stop());
+    screenStream = null;
+  }
+
+  // Obnovi kamero v peer connection.
+  if(pc && localStream){
+    const camTrack = localStream.getVideoTracks()[0];
+    const videoSender = pc.getSenders().find(s => s.track === null || (s.track && s.track.kind !== 'audio'))
+      || pc.getSenders().find(s => s.track && s.track.kind === 'video');
+    const realVideoSender = pc.getSenders().find(s => s === videoSender) || pc.getSenders().find(()=>true);
+    const sender = pc.getSenders().find(s => (s.track && s.track.kind === 'video') || (!s.track));
+    if(camTrack && sender){
+      await sender.replaceTrack(camTrack);
+    }
+    localVideo.srcObject = localStream;
+  }
+
+  isSharingScreen = false;
+  el('screenBtn').classList.remove('sharing');
+  el('screenBtn').title = 'Deli zaslon';
+  el('camBtn').disabled = false;
+  addMsg('Deljenje zaslona je ustavljeno.', 'sys');
+}
+
 el('endBtn').addEventListener('click', ()=>{
+  if(isSharingScreen) stopScreenShare();
   if(pc) pc.close();
   if(localStream) localStream.getTracks().forEach(t=>t.stop());
   cleanupRoom();
